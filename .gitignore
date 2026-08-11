@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Rollout data (large; keep out of git)
+rollouts/
+analysis/results/
+analysis/saved_rollouts/
+
+# WSL setup scripts (machine-specific, not part of the audit artifact)
+wsl-setup/
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# HuggingFace cache
+.cache/huggingface/
