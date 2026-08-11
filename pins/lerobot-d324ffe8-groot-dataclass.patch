@@ -1,0 +1,30 @@
+diff --git a/src/lerobot/policies/groot/groot_n1.py b/src/lerobot/policies/groot/groot_n1.py
+index 06ff5a04..02648735 100644
+--- a/src/lerobot/policies/groot/groot_n1.py
++++ b/src/lerobot/policies/groot/groot_n1.py
+@@ -173,22 +173,16 @@ N_COLOR_CHANNELS = 3
+ 
+ 
+ # config
+-@dataclass
+ class GR00TN15Config(PretrainedConfig):
+     model_type = "gr00t_n1_5"
+-    backbone_cfg: dict = field(init=False, metadata={"help": "Backbone configuration."})
+-
+-    action_head_cfg: dict = field(init=False, metadata={"help": "Action head configuration."})
+-
+-    action_horizon: int = field(init=False, metadata={"help": "Action horizon."})
+-
+-    action_dim: int = field(init=False, metadata={"help": "Action dimension."})
+-    compute_dtype: str = field(default="float32", metadata={"help": "Compute dtype."})
+ 
+     def __init__(self, **kwargs):
+         super().__init__(**kwargs)
+         for key, value in kwargs.items():
+             setattr(self, key, value)
++        for k in ("backbone_cfg", "action_head_cfg", "action_horizon", "action_dim", "compute_dtype"):
++            if not hasattr(self, k):
++                setattr(self, k, kwargs.get(k, {} if k.endswith("cfg") else ("float32" if k == "compute_dtype" else 0)))
+ 
+ 
+ # real model

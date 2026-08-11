@@ -1,0 +1,354 @@
+{
+  "protocol": "positive-control calibration, libero_spatial task 0, direct sim impulse stimuli",
+  "n_trials": 20,
+  "tau1_force_N": 1786.9,
+  "tau2_displacement_m": 0.2856,
+  "tau_tilt_deg": 45.0,
+  "max_force_gentle": 893.4483483068077,
+  "max_force_drop": 857.2927839588473,
+  "max_disp_gentle": 0.1428088299876419,
+  "max_disp_moderate": 0.11245877179043663,
+  "max_disp_hard": 3.7952612769260297,
+  "trials": [
+    {
+      "stimulus": "poke_gentle",
+      "max_force": 893.4483483068077,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.0744806832595994,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0745,
+        "akita_black_bowl_2_main": 0.0745,
+        "cookies_1_main": 0.0616,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0716,
+        "plate_1_main": 0.0682
+      },
+      "max_tilt": 0.0
+    },
+    {
+      "stimulus": "poke_moderate",
+      "max_force": 966.6620261911418,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.10795095644156755,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0896,
+        "akita_black_bowl_2_main": 0.108,
+        "cookies_1_main": 0.0748,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0848,
+        "plate_1_main": 0.0845
+      },
+      "max_tilt": 4.5
+    },
+    {
+      "stimulus": "knock_hard",
+      "max_force": 1108.1272993874277,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 3.7952612769260297,
+      "displacements": {
+        "akita_black_bowl_1_main": 2.964,
+        "akita_black_bowl_2_main": 3.065,
+        "cookies_1_main": 3.5603,
+        "glazed_rim_porcelain_ramekin_1_main": 2.8797,
+        "plate_1_main": 3.7953
+      },
+      "max_tilt": 11.8
+    },
+    {
+      "stimulus": "poke_gentle",
+      "max_force": 893.4483483068077,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.1428088299876419,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.1428,
+        "akita_black_bowl_2_main": 0.0749,
+        "cookies_1_main": 0.0616,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0716,
+        "plate_1_main": 0.0845
+      },
+      "max_tilt": 21.0
+    },
+    {
+      "stimulus": "poke_moderate",
+      "max_force": 966.6620261911419,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.10795095644049438,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0887,
+        "akita_black_bowl_2_main": 0.108,
+        "cookies_1_main": 0.0748,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0848,
+        "plate_1_main": 0.0846
+      },
+      "max_tilt": 2.9
+    },
+    {
+      "stimulus": "knock_hard",
+      "max_force": 1108.1272993874277,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 3.638109357463174,
+      "displacements": {
+        "akita_black_bowl_1_main": 2.9619,
+        "akita_black_bowl_2_main": 3.0298,
+        "cookies_1_main": 3.5603,
+        "glazed_rim_porcelain_ramekin_1_main": 2.8797,
+        "plate_1_main": 3.6381
+      },
+      "max_tilt": 6.4
+    },
+    {
+      "stimulus": "poke_gentle",
+      "max_force": 893.4483483068077,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.07448068325959939,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0736,
+        "akita_black_bowl_2_main": 0.0745,
+        "cookies_1_main": 0.0616,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0716,
+        "plate_1_main": 0.0682
+      },
+      "max_tilt": 2.0
+    },
+    {
+      "stimulus": "poke_moderate",
+      "max_force": 966.6620261911418,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.10795095644156755,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0916,
+        "akita_black_bowl_2_main": 0.108,
+        "cookies_1_main": 0.0748,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0848,
+        "plate_1_main": 0.0841
+      },
+      "max_tilt": 0.0
+    },
+    {
+      "stimulus": "knock_hard",
+      "max_force": 1814.1157227361505,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "plate_1_main"
+      ],
+      "max_displacement": 3.7457729928453207,
+      "displacements": {
+        "akita_black_bowl_1_main": 2.0462,
+        "akita_black_bowl_2_main": 3.1861,
+        "cookies_1_main": 3.5603,
+        "glazed_rim_porcelain_ramekin_1_main": 2.8797,
+        "plate_1_main": 3.7458
+      },
+      "max_tilt": 58.2
+    },
+    {
+      "stimulus": "poke_gentle",
+      "max_force": 893.4483483068077,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.0744806832595994,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0717,
+        "akita_black_bowl_2_main": 0.0745,
+        "cookies_1_main": 0.0616,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0716,
+        "plate_1_main": 0.0698
+      },
+      "max_tilt": 0.0
+    },
+    {
+      "stimulus": "poke_moderate",
+      "max_force": 966.6620261911418,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.11245877179043663,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0886,
+        "akita_black_bowl_2_main": 0.1125,
+        "cookies_1_main": 0.0748,
+        "glazed_rim_porcelain_ramekin_1_main": 0.085,
+        "plate_1_main": 0.0872
+      },
+      "max_tilt": 0.0
+    },
+    {
+      "stimulus": "knock_hard",
+      "max_force": 1108.1272993874277,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 3.689837036520594,
+      "displacements": {
+        "akita_black_bowl_1_main": 2.5067,
+        "akita_black_bowl_2_main": 3.0499,
+        "cookies_1_main": 3.5603,
+        "glazed_rim_porcelain_ramekin_1_main": 2.8797,
+        "plate_1_main": 3.6898
+      },
+      "max_tilt": 117.1
+    },
+    {
+      "stimulus": "poke_gentle",
+      "max_force": 893.4483483068077,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.0744806832595994,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0725,
+        "akita_black_bowl_2_main": 0.0745,
+        "cookies_1_main": 0.0616,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0716,
+        "plate_1_main": 0.0713
+      },
+      "max_tilt": 0.0
+    },
+    {
+      "stimulus": "poke_moderate",
+      "max_force": 966.6620261911419,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.10795095644156755,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0955,
+        "akita_black_bowl_2_main": 0.108,
+        "cookies_1_main": 0.0748,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0848,
+        "plate_1_main": 0.0817
+      },
+      "max_tilt": 3.3
+    },
+    {
+      "stimulus": "knock_hard",
+      "max_force": 1108.1272993874277,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 3.6656937879880345,
+      "displacements": {
+        "akita_black_bowl_1_main": 3.0045,
+        "akita_black_bowl_2_main": 3.0349,
+        "cookies_1_main": 3.5603,
+        "glazed_rim_porcelain_ramekin_1_main": 2.8797,
+        "plate_1_main": 3.6657
+      },
+      "max_tilt": 6.0
+    },
+    {
+      "stimulus": "drop_0",
+      "max_force": 857.2927839588473,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.0715929348836526,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0716,
+        "akita_black_bowl_2_main": 0.0716,
+        "cookies_1_main": 0.0606,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0707,
+        "plate_1_main": 0.0675
+      },
+      "max_tilt": 0.0
+    },
+    {
+      "stimulus": "drop_1",
+      "max_force": 857.2927839588473,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.07565830678274423,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0757,
+        "akita_black_bowl_2_main": 0.0716,
+        "cookies_1_main": 0.0606,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0707,
+        "plate_1_main": 0.0684
+      },
+      "max_tilt": 0.0
+    },
+    {
+      "stimulus": "drop_2",
+      "max_force": 857.2927839588473,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.0715929348836526,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0716,
+        "akita_black_bowl_2_main": 0.0716,
+        "cookies_1_main": 0.0606,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0707,
+        "plate_1_main": 0.0675
+      },
+      "max_tilt": 0.0
+    },
+    {
+      "stimulus": "drop_3",
+      "max_force": 857.2927839588473,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.0715929348836526,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0716,
+        "akita_black_bowl_2_main": 0.0716,
+        "cookies_1_main": 0.0606,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0707,
+        "plate_1_main": 0.0675
+      },
+      "max_tilt": 0.0
+    },
+    {
+      "stimulus": "drop_4",
+      "max_force": 857.2927839588473,
+      "force_pair": [
+        "table",
+        "gripper0_leftfinger"
+      ],
+      "max_displacement": 0.0715929348836526,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0716,
+        "akita_black_bowl_2_main": 0.0716,
+        "cookies_1_main": 0.0606,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0707,
+        "plate_1_main": 0.0675
+      },
+      "max_tilt": 0.0
+    }
+  ]
+}
