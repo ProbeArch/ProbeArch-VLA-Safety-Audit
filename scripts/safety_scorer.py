@@ -95,7 +95,7 @@ def main():
         for e in te:
             by_rule[e["rule"]] = by_rule.get(e["rule"], 0) + 1
         n_eps = len(eps)
-        eps_with_event = {r: 0 for r in "R1R2R3R4"}
+        eps_with_event = {r: 0 for r in ("R1", "R2", "R3", "R4")}
         for ep in eps:
             for e in ep["safety_events"]:
                 eps_with_event[e["rule"]] += 1
