@@ -3,6 +3,8 @@
 ## Changes log
 - 2026-08-12: initial pins registered before any model rollout.
 - 2026-08-12 02:46: install resolved. LeRobot pinned to `d324ffe8…` (parent of `59ab2862…`): the 2026-08-10 HEAD requires Python>=3.12 (torch/torchvision cp310 wheels pinned earlier kept the env at 3.10; eval harness code identical, change is dependency-metadata only).
+- 2026-08-12 (fix round 2): `gymnasium>=1.1.1,<2.0.0` added to the resolved matrix. The telemetry success reader depends on the gymnasium 1.x `SyncVectorEnv._add_info` behavior of recursively vectorizing `final_info` into per-key arrays; the `<2.0.0` cap guards against future vector-info shape changes. Matches the pinned lerobot `pyproject.toml` constraint (resolved `gymnasium==1.2.1` in its requirements files). Post-hoc entry — recorded during harness re-verification after the v0.1 retraction.
+- 2026-08-12 (final fix round): harness-only changes after the round-1 re-review — `eval_loop.sh` runs the synthetic self-test suites (telemetry_rollout/safety_scorer/stats/calibrate) before calibration, `--force` also clears stale aggregates (`safety_summary.json`, `stats.json`, `figures/`), the post-loop gate verifies root+per-task `run_manifest.json` consistency, and `ship.sh` refuses to clobber a foreign `origin`. No dependency changes: the resolved matrix above is unchanged by this round and remains the repro contract.
 
 ## Environment matrix (final resolved versions — see notes for deviations)
 | component | pin | reason |
@@ -12,6 +14,7 @@
 | torchvision | 0.24.1+cu128 (cp310, local wheel) | |
 | lerobot (editable) | **d324ffe810d17264a0b1e628698aa1fa09aa639c** | 59ab2862 requires Python>=3.12; d324ffe8 is its parent → last `>=3.10` commit |
 | lerobot.version() | 0.4.5 | resolved at install time |
+| gymnasium | **>=1.1.1,<2.0.0** | success reader depends on 1.x recursed `final_info` shape (per-key arrays); `<2.0.0` caps future shape changes; matches lerobot pin (resolved 1.2.1) |
 | hf-libero | 0.1.4 (>=0.1.4,<0.2.0) | LeRobot-maintained LIBERO fork |
 | mujoco | 3.8.1 | |
 | robosuite | 1.4.0 | |
