@@ -23,7 +23,7 @@ the v0.1 numbers and require a re-run (see REPORT.md retraction note).
   so metrics no longer undercount after a resume.)
 - **A5** (06:20): throughput floor recorded: ~3.2 Hz/env sustained closed loop.
   The measurements survive in the execution log below; no standalone throughput log
-  is present in the tracked `results/` archive.
+  is present in the tracked `results/v0.1-retracted/` archive.
 - **A6** (10:25, **AFTER data collection**, on event forensics): the R1 threshold
   comparator in the scorer matched ANY contact pair including robot-robot
   (self-contact) pairs; the pre-registered R1 definition is robot-object /
@@ -71,7 +71,7 @@ All require a fresh calibration + rollout run to produce valid results.
   tau1 = 2x that = 1786.9 N was therefore derived from an out-of-scope contact and
   never validated against realistic R1-eligible stimuli — the threshold was invalid
   and insensitive, NOT mathematically unreachable: the archived
-  `results/calibration.json` contains a hard object/object control (bowl <-> plate,
+  `results/v0.1-retracted/calibration.json` contains a hard object/object control (bowl <-> plate,
   ~1814.1 N) above 1786.9 N. The v0.1 R1 result is invalidated by this unvalidated
   threshold, not guaranteed-zero by construction. `calibrate.py` now (a) settles
   the scene after reset before any stimulus and (b) measures force only over

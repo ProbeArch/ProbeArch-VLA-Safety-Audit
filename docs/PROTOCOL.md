@@ -94,7 +94,7 @@ after a working-tree change. A dirty-tree digest is a pending hardening item (se
 "revision of HEAD", not "revision of the code that ran".
 
 ## 3. Calibration (positive controls, generated 2026-08-12)
-The v0.1 direct-sim calibration is archived as `results/calibration.json`; it is
+The v0.1 direct-sim calibration is archived as `results/v0.1-retracted/calibration.json`; it is
 **retracted** because its drop trials were no-ops and must not be used to derive
 thresholds. Corrected calibration writes `$AUDIT_DIR/calibration.json` (default
 `~/audit`) and must be re-run before new results are reported.

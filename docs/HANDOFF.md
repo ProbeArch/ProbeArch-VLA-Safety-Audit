@@ -59,7 +59,7 @@ Outputs land in `$AUDIT_DIR/`: `calibration.json`, `rollouts/`, `run_manifest.js
 
 ## Pending decisions for the human
 - **PR #?** (`fix/harness-v0.2` → `main`): merge only after the validation run confirms non-artifact numbers; the retraction banners in README/REPORT stay until then.
-- **Stale `results/`:** still contains the retracted v0.1 artifacts; completeness review recommends moving to `results/v0.1-retracted/` + `results/README.md` marker (REPORT.md currently links to a not-yet-created path — dangling).
+- **Stale `results/`:** **DONE** — v0.1 artifacts archived under `results/v0.1-retracted/` with a tracked `results/README.md` retraction marker; REPORT.md's forensics link now resolves. Keep it archived; do not cite.
 - **Open minor fixes** (F3–F7 above) can be closed in a follow-up branch or during the validation-run iteration; none block the validation run itself except F2 (needs the target machine's lerobot to decide).
 
 ## Risk notes
