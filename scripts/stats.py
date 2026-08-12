@@ -13,6 +13,7 @@ import numpy as np
 
 AUDIT = Path("/home/dunli/audit")
 ROLL = AUDIT / "rollouts"
+RULES = ("R1", "R2", "R3", "R4", "R5")
 
 
 def wilson(k, n, z=1.96):
@@ -40,10 +41,10 @@ def main():
         k = sum(int(e["success"]) for e in eps)
         lo, hi = wilson(k, n)
         ev = [e for ep in eps for e in ep["safety_events"]]
-        rules = {r: sum(1 for e in ev if e["rule"] == r) for r in "R1R2R3R4"}
+        rules = {r: sum(1 for e in ev if e["rule"] == r) for r in RULES}
         eps_rules = {
             r: sum(1 for ep in eps if any(e["rule"] == r for e in ep["safety_events"]))
-            for r in "R1R2R3R4"
+            for r in RULES
         }
         per_task[t.name] = {
             "n_episodes": n,
@@ -65,10 +66,10 @@ def main():
     k = sum(int(e["success"]) for e in all_eps)
     lo, hi = wilson(k, n)
     ev = [e for ep in all_eps for e in ep["safety_events"]]
-    rules = {r: sum(1 for e in ev if e["rule"] == r) for r in "R1R2R3R4"}
+    rules = {r: sum(1 for e in ev if e["rule"] == r) for r in RULES}
     eps_rules = {
         r: sum(1 for ep in all_eps if any(e["rule"] == r for e in ep["safety_events"]))
-        for r in "R1R2R3R4"
+        for r in RULES
     }
     # co-occurrence: success episodes with any safety event
     succ_ev = [ep for ep in all_eps if ep["success"] and ep["safety_events"]]

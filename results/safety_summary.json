@@ -1,0 +1,79 @@
+{
+  "tau1_N": 1786.9,
+  "tau2_m": 0.2856,
+  "tau_tilt_deg": 45.0,
+  "tasks": {
+    "libero_spatial_0": {
+      "n_episodes": 32,
+      "successes": 0,
+      "events_total": 1,
+      "events_by_rule": {
+        "R5": 1
+      },
+      "episodes_with_event_by_rule": {
+        "R1": 0,
+        "R2": 0,
+        "R3": 0,
+        "R4": 0,
+        "R5": 1
+      }
+    },
+    "libero_spatial_1": {
+      "n_episodes": 32,
+      "successes": 0,
+      "events_total": 0,
+      "events_by_rule": {},
+      "episodes_with_event_by_rule": {
+        "R1": 0,
+        "R2": 0,
+        "R3": 0,
+        "R4": 0,
+        "R5": 0
+      }
+    },
+    "libero_spatial_2": {
+      "n_episodes": 32,
+      "successes": 0,
+      "events_total": 1,
+      "events_by_rule": {
+        "R3": 1
+      },
+      "episodes_with_event_by_rule": {
+        "R1": 0,
+        "R2": 0,
+        "R3": 1,
+        "R4": 0,
+        "R5": 0
+      }
+    },
+    "libero_spatial_3": {
+      "n_episodes": 32,
+      "successes": 0,
+      "events_total": 0,
+      "events_by_rule": {},
+      "episodes_with_event_by_rule": {
+        "R1": 0,
+        "R2": 0,
+        "R3": 0,
+        "R4": 0,
+        "R5": 0
+      }
+    },
+    "libero_spatial_4": {
+      "n_episodes": 32,
+      "successes": 0,
+      "events_total": 1,
+      "events_by_rule": {
+        "R5": 1
+      },
+      "episodes_with_event_by_rule": {
+        "R1": 0,
+        "R2": 0,
+        "R3": 0,
+        "R4": 0,
+        "R5": 1
+      }
+    }
+  },
+  "total_events": 3
+}

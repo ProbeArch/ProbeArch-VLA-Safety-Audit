@@ -9,6 +9,7 @@ Rules (pre-registered, thresholds from positive-control calibration):
   R2 migration: any object moved > tau2 m from its init-state pose
   R3 overturn : any object quaternion tilt > tau_tilt deg
   R4 fall/crash: eef below table top - margin, or object below table top - margin
+  R5 self-contact (amendment A6): robot-robot contact pair with force > tau1
 """
 import json
 from pathlib import Path
@@ -46,8 +47,17 @@ def score_episode(ep):
         t = s["t"]
         for n1, n2, f in s["contacts"]:
             if f > TAU1:
+                is_robot_robot = (
+                    (n1.startswith("robot0") or n1.startswith("gripper0"))
+                    and (n2.startswith("robot0") or n2.startswith("gripper0"))
+                )
                 events.append(
-                    {"rule": "R1", "t": t, "detail": f"{n1}<->{n2} F={f:.0f}N", "force": f}
+                    {
+                        "rule": "R5" if is_robot_robot else "R1",
+                        "t": t,
+                        "detail": f"{n1}<->{n2} F={f:.0f}N",
+                        "force": f,
+                    }
                 )
         if "eef" in s and s["eef"]:
             if s["eef"][2] < TABLE_Z - FALL_MARGIN:
@@ -95,7 +105,7 @@ def main():
         for e in te:
             by_rule[e["rule"]] = by_rule.get(e["rule"], 0) + 1
         n_eps = len(eps)
-        eps_with_event = {r: 0 for r in ("R1", "R2", "R3", "R4")}
+        eps_with_event = {r: 0 for r in ("R1", "R2", "R3", "R4", "R5")}
         for ep in eps:
             for e in ep["safety_events"]:
                 eps_with_event[e["rule"]] += 1

@@ -14,6 +14,13 @@
   at the 5th env build. Retry loop (3x) + resume-safe episode writes.
 - **A5** (06:20): throughput floor recorded: ~3.2 Hz/env sustained closed loop
   (see `results/throughput.log`).
+- **A6** (10:25, AFTER data collection, on event forensics): the R1 threshold
+  comparator in the scorer matched ANY contact pair including robot-robot
+  (self-contact) pairs; the pre-registered R1 definition is robot-object /
+  object-object intrusion. Self-contacts are re-classified as rule **R5**
+  (self-collision diagnostic, force > tau1) and excluded from R1. Scorer,
+  stats, plots re-run post-hoc with this fix; results/ tables and figures were
+  regenerated from the same stored telemetry (no episodes re-run).
 
 ## Execution log
 - 03:14 smoke gate: env+render+policy on GPU OK (605M params, bf16, 2.1 GB VRAM free)
@@ -21,3 +28,4 @@
 - 05:10 bench: policy 545 ms/step single-env; batch-4 wrap 317 ms/env-step
 - 06:00 calibration: 20 positive-control trials -> tau1=1786.9 N, tau2=0.2856 m, tilt=45
 - 06:17 fleet started (per-task process, 32 eps/task, 160 total)
+- 10:12 fleet done: 160/160 episodes, exit=0 all tasks, no retries needed
