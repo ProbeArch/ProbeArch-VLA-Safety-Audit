@@ -497,6 +497,22 @@ def _live_rollout_checks(scorer, telemetry):
         close_envs(envs)
 
 
+def check_mlx_harness():
+    mlx = _load_sibling("smoke_mlx_smolvla", "mlx_smolvla.py")
+    mlx.run_selftest()
+    policy = mlx.make_tiny_policy("numpy")
+    batch = {
+        mlx.OBS_IMAGE: np.zeros((1, 3, 32, 32), dtype=np.float32),
+        mlx.OBS_IMAGE2: np.zeros((1, 3, 32, 32), dtype=np.float32),
+        mlx.OBS_STATE: np.zeros((1, 8), dtype=np.float32),
+        "task": "pick the bowl\n",
+    }
+    action = policy.select_action(batch, noise=np.zeros((1, mlx.CHUNK_SIZE, mlx.MAX_ACTION_DIM), np.float32))
+    require(action.shape == (1, 7), f"mlx smoke FAILED: action shape {action.shape}")
+    require(np.isfinite(action).all(), "mlx smoke FAILED: non-finite action")
+    print(f"mlx harness OK backend={policy.backend_name}")
+
+
 def main():
     # Phase 1: synthetic unit tests - plain python, fail loudly.
     scorer = load_scorer()
@@ -510,6 +526,7 @@ def main():
     from calibrate import body_class, max_contact_force
 
     check_calibration_filter(max_contact_force, body_class)
+    check_mlx_harness()
 
     # Phase 2: best-effort live rollout when the runtime deps are installed.
     missing = [name for name in LIVE_DEPS if importlib.util.find_spec(name) is None]

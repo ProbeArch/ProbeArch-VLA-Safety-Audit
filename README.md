@@ -35,7 +35,7 @@ docs/amendments.md   append-only change log; A1–A5 recorded pre-collection,
                      results were retracted)
 docs/REPORT.md       v0.1 report — RETRACTED pending re-run (forensics only)
 docs/BACKLOG.md      design partners + Failure First outreach
-scripts/             smoke gate, calibration, telemetry rollouts, scoring, stats, plots
+scripts/             smoke gate, calibration, telemetry rollouts, scoring, stats, plots, MLX policy runtime
 pins.md              resolved version matrix + install quirks
 pins/                lerobot patch (GR00TN15Config import fix)
 $AUDIT_DIR/           current outputs (default ~/audit; run manifest, calibration,
@@ -55,8 +55,9 @@ order — each gate must pass before the next stage:
 1. **Smoke gate + self-tests:** `python3 scripts/telemetry_rollout.py --selftest`,
    `python3 scripts/safety_scorer.py --selftest`,
    `python3 scripts/stats.py --selftest`, `python3 scripts/calibrate.py --self-test`,
+   `python3 scripts/mlx_smolvla.py --selftest`,
    then `python3 scripts/smoke_test.py` — synthetic success-reader, scorer,
-   stats and calibration checks (plain python, no runtime deps) plus a
+   stats, calibration and MLX-runtime checks (plain python, no runtime deps) plus a
    best-effort live rollout in smoke_test.py. Each must exit 0; `eval_loop.sh`
    runs all of them automatically and aborts the run otherwise.
 2. **Small pilot:** `scripts/eval_loop.sh libero_spatial 1 1` (1 pair, 1 env), then
@@ -64,6 +65,12 @@ order — each gate must pass before the next stage:
    before committing to the fleet.
 3. **Fleet:** `scripts/eval_loop.sh libero_spatial 8 4` runs the full pipeline
    (smoke gate -> calibrate -> per-task rollouts -> safety scorer -> stats -> plots).
+
+Apple Silicon can swap the policy runtime without changing the physics/scoring
+contract: `POLICY_BACKEND=mlx scripts/eval_loop.sh libero_spatial 1 1` (or
+`python3 scripts/telemetry_rollout.py --device mlx ...`). The CUDA/LeRobot path
+remains the official audit backend. MLX numbers are not interchangeable with
+CUDA numbers until a paired parity run is recorded.
 
 `eval_loop.sh` refuses to start when `$AUDIT_DIR/rollouts` already contains episode
 files: pass `--resume` to continue a manifest-matched run (policy, suite, resolution,
@@ -78,7 +85,7 @@ Manual stage-by-stage (equivalent to what the loop does):
    - `python3 scripts/calibrate.py --suite libero_spatial --task-id 0`
      -> `$AUDIT_DIR/calibration.json` (scorer-validated positive controls)
    - `python3 scripts/telemetry_rollout.py --suite libero_spatial --task_ids <task> --n_envs 4 --n_pairs 8`
-     once per task (`<task>` = 0, 1, 2, 3, 4) to preserve per-task process isolation.
+     (`--device mlx` for the Apple Silicon policy runtime)
    - `python3 scripts/safety_scorer.py && python3 scripts/stats.py && python3 scripts/plots.py`
 
 Raw telemetry and aggregated outputs are written under `$AUDIT_DIR`; the tracked

@@ -28,6 +28,7 @@ from pathlib import Path
 import numpy as np
 
 HARNESS_SCHEMA_VERSION = "probearch-telemetry-v0.4"
+POLICY_BACKENDS = ("cuda", "mlx")
 
 # Per-step contact record budget. R1-eligible contacts (robot-object /
 # object-object) are never evicted by the truncation: see collect_telemetry().
@@ -528,7 +529,8 @@ def main():
         "--out",
         default=str(Path(os.environ.get("AUDIT_DIR", str(Path.home() / "audit"))) / "rollouts"),
     )
-    ap.add_argument("--device", default="cuda")
+    ap.add_argument("--device", default="cuda", choices=POLICY_BACKENDS,
+                    help="policy backend: cuda (LeRobot/torch, default) or mlx (Apple Silicon)")
     ap.add_argument("--resolution", type=int, default=256)
     ap.add_argument("--max_steps", type=int, default=None)
     ap.add_argument("--n_envs", type=int, default=4)
@@ -545,17 +547,32 @@ def main():
         ap.error("--task_ids is required (or pass --selftest)")
 
     import gymnasium as gym
-    import torch
-    from lerobot.configs.policies import PreTrainedConfig
     from lerobot.envs.configs import LiberoEnv
     from lerobot.envs.factory import make_env, make_env_pre_post_processors
     from lerobot.envs.utils import add_envs_task, close_envs, preprocess_observation
-    from lerobot.policies.factory import make_policy, make_pre_post_processors
     from lerobot.utils.random_utils import set_seed
-    from lerobot.utils.utils import get_safe_torch_device
 
     set_seed(1000)
-    device = get_safe_torch_device(args.device, log=True)
+    use_mlx = args.device == "mlx"
+    if use_mlx:
+        from mlx_smolvla import HARNESS_NAME as MLX_HARNESS_NAME
+        from mlx_smolvla import load_policy as load_mlx_policy
+        from mlx_smolvla import observation_from_lerobot
+
+        torch = None
+        device = "mlx"
+        policy_cfg = None
+        preprocessor = None
+        postprocessor = None
+        env_preprocessor = None
+        env_postprocessor = None
+    else:
+        import torch
+        from lerobot.configs.policies import PreTrainedConfig
+        from lerobot.policies.factory import make_policy, make_pre_post_processors
+        from lerobot.utils.utils import get_safe_torch_device
+
+        device = get_safe_torch_device(args.device, log=True)
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -569,6 +586,7 @@ def main():
         "git_revision": git_revision(),
         "policy": args.policy,
         "policy_sha256": policy_cache_sha256(args.policy),
+        "policy_backend": args.device,
         "suite": args.suite,
         "task_ids": sorted(args.task_ids),
         "resolution": [args.resolution, args.resolution],
@@ -577,6 +595,8 @@ def main():
         "n_pairs": args.n_pairs,
         "calibration_sha256": file_sha256(calibration_path),
     }
+    if use_mlx:
+        root_expected["policy_runtime"] = MLX_HARNESS_NAME
     legacy_artifacts = list(out_dir.glob("*/ep_*.json")) + [out_dir / "metrics.json"]
     root_manifest = ensure_manifest(
         out_dir / "run_manifest.json", root_expected, legacy_artifacts
@@ -588,27 +608,37 @@ def main():
         observation_height=args.resolution,
         observation_width=args.resolution,
     )
-    policy_cfg = PreTrainedConfig.from_pretrained(args.policy)
-    policy = make_policy(cfg=policy_cfg, env_cfg=env_cfg, rename_map={})
-    policy.eval()
-    try:
-        n_params = sum(p.numel() for p in policy.parameters())
-        print(f"policy loaded: {type(policy).__name__} params={n_params/1e6:.1f}M device={next(policy.parameters()).device}")
-    except Exception as e:
-        print(f"policy loaded (param count unavailable: {e})")
+    if use_mlx:
+        policy = load_mlx_policy(args.policy, backend="mlx")
+        print(
+            f"policy loaded: SmolVLAMLX backend={policy.backend_name} "
+            f"id={args.policy} dir={policy.policy_dir}"
+        )
+    else:
+        policy_cfg = PreTrainedConfig.from_pretrained(args.policy)
+        policy = make_policy(cfg=policy_cfg, env_cfg=env_cfg, rename_map={})
+        policy.eval()
+        try:
+            n_params = sum(p.numel() for p in policy.parameters())
+            print(
+                f"policy loaded: {type(policy).__name__} params={n_params/1e6:.1f}M "
+                f"device={next(policy.parameters()).device}"
+            )
+        except Exception as e:
+            print(f"policy loaded (param count unavailable: {e})")
 
-    preprocessor_overrides = {
-        "device_processor": {"device": str(policy.config.device)},
-        "rename_observations_processor": {"rename_map": {}},
-    }
-    preprocessor, postprocessor = make_pre_post_processors(
-        policy_cfg=policy_cfg,
-        pretrained_path=policy_cfg.pretrained_path,
-        preprocessor_overrides=preprocessor_overrides,
-    )
-    env_preprocessor, env_postprocessor = make_env_pre_post_processors(
-        env_cfg=env_cfg, policy_cfg=policy_cfg
-    )
+        preprocessor_overrides = {
+            "device_processor": {"device": str(policy.config.device)},
+            "rename_observations_processor": {"rename_map": {}},
+        }
+        preprocessor, postprocessor = make_pre_post_processors(
+            policy_cfg=policy_cfg,
+            pretrained_path=policy_cfg.pretrained_path,
+            preprocessor_overrides=preprocessor_overrides,
+        )
+        env_preprocessor, env_postprocessor = make_env_pre_post_processors(
+            env_cfg=env_cfg, policy_cfg=policy_cfg
+        )
 
     envs = make_env(env_cfg, n_envs=args.n_envs, use_async_envs=False)
     try:
@@ -638,7 +668,10 @@ def main():
                 "n_envs": N,
                 "n_pairs": args.n_pairs,
                 "calibration_sha256": root_manifest["calibration_sha256"],
+                "policy_backend": args.device,
             }
+            if use_mlx:
+                provenance["policy_runtime"] = MLX_HARNESS_NAME
             task_manifest = ensure_manifest(
                 task_out / "run_manifest.json",
                 provenance,
@@ -697,15 +730,17 @@ def main():
                 while not all(done_arr) and step < max_steps:
                     obs = preprocess_observation(obs)
                     obs = add_envs_task(vec, obs)
-                    obs = env_preprocessor(obs)
-                    obs = preprocessor(obs)
-                    with torch.inference_mode():
-                        action = policy.select_action(obs)
-                    action = postprocessor(action)
-                    action_transition = {"action": action}
-                    action_transition = env_postprocessor(action_transition)
-                    action = action_transition["action"]
-                    action_np = action.to("cpu").numpy()
+                    if use_mlx:
+                        batch = observation_from_lerobot(obs)
+                        action_np = np.asarray(policy.select_action(batch), dtype=np.float32)
+                    else:
+                        obs = env_preprocessor(obs)
+                        obs = preprocessor(obs)
+                        with torch.inference_mode():
+                            action = policy.select_action(obs)
+                        action = postprocessor(action)
+                        action_transition = env_postprocessor({"action": action})
+                        action_np = action_transition["action"].to("cpu").numpy()
                     for k in range(N):
                         if not done_arr[k]:
                             sim = vec.envs[k]._env.sim

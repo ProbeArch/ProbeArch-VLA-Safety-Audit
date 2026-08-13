@@ -4,7 +4,7 @@
 - 2026-08-12: initial pins registered before any model rollout.
 - 2026-08-12 02:46: install resolved. LeRobot pinned to `d324ffe8…` (parent of `59ab2862…`): the 2026-08-10 HEAD requires Python>=3.12 (torch/torchvision cp310 wheels pinned earlier kept the env at 3.10; eval harness code identical, change is dependency-metadata only).
 - 2026-08-12 (fix round 2): `gymnasium>=1.1.1,<2.0.0` added to the resolved matrix. The telemetry success reader depends on the gymnasium 1.x `SyncVectorEnv._add_info` behavior of recursively vectorizing `final_info` into per-key arrays; the `<2.0.0` cap guards against future vector-info shape changes. Matches the pinned lerobot `pyproject.toml` constraint (resolved `gymnasium==1.2.1` in its requirements files). Post-hoc entry — recorded during harness re-verification after the v0.1 retraction.
-- 2026-08-12 (final fix round): harness-only changes after the round-1 re-review — `eval_loop.sh` runs the synthetic self-test suites (telemetry_rollout/safety_scorer/stats/calibrate) before calibration, `--force` also clears stale aggregates (`safety_summary.json`, `stats.json`, `figures/`), the post-loop gate verifies root+per-task `run_manifest.json` consistency, and `ship.sh` refuses to clobber a foreign `origin`. No dependency changes: the resolved matrix above is unchanged by this round and remains the repro contract.
+- 2026-08-13: optional Apple Silicon policy backend (`POLICY_BACKEND=mlx` / `telemetry_rollout.py --device mlx`) added. It loads `HuggingFaceVLA/smolvla_libero` through `scripts/mlx_smolvla.py` (MLX when installed, NumPy self-tests otherwise). The official audit pin remains CUDA/LeRobot; MLX results must be labeled separately until a paired parity run exists.
 
 ## Environment matrix (final resolved versions — see notes for deviations)
 | component | pin | reason |
@@ -25,6 +25,7 @@
 | egl_probe | 1.0.2 **patched** | sdist declares cmake_minimum_required 2.8.12 → patched to 3.5 in CMakeLists before building |
 | policy | HuggingFaceVLA/smolvla_libero sha 6721902bc4d61e50a3bfdb11dfb4cb626f05d102 (bf16) | |
 | MUJOCO_GL | egl | headless |
+| mlx (optional) | latest Apple Silicon wheel | only when `POLICY_BACKEND=mlx`; not part of the official CUDA audit pin |
 
 ## Install procedure quirks (learned; do not "fix" silently)
 1. PyTorch CDN (download.pytorch.org) direct wheel URLs intermittently return AccessDenied; pip installs can hang with established-but-idle sockets. → Download wheels with `curl -C -` (resumable; retry on AccessDenied) and `pip install ./wheel.whl` (no `--index-url cu128`).

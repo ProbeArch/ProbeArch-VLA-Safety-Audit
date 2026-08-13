@@ -18,15 +18,17 @@
 # and the per-task loop (Spatial task ids 0-4) are Spatial-specific. Any other
 # suite is rejected rather than silently given Spatial thresholds.
 #
-# Env:    AUDIT_DIR   output root (default ~/audit)
-#         POLICY      HF policy id (default HuggingFaceVLA/smolvla_libero)
-#         MUJOCO_GL   render backend (default egl)
+# Env:    AUDIT_DIR        output root (default ~/audit)
+#         POLICY           HF policy id (default HuggingFaceVLA/smolvla_libero)
+#         POLICY_BACKEND   cuda (default, LeRobot/torch) or mlx (Apple Silicon)
+#         MUJOCO_GL        render backend (default egl)
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export AUDIT_DIR="${AUDIT_DIR:-$HOME/audit}"
 export MUJOCO_GL="${MUJOCO_GL:-egl}"
 POLICY="${POLICY:-HuggingFaceVLA/smolvla_libero}"
+POLICY_BACKEND="${POLICY_BACKEND:-cuda}"
 
 SUITE=""
 N_PAIRS=""
@@ -63,6 +65,10 @@ case "$N_ENVS" in
 esac
 if [[ "$N_PAIRS" -lt 1 || "$N_ENVS" -lt 1 ]]; then
   echo "n_pairs and n_envs must be >= 1" >&2
+  exit 2
+fi
+if [[ "$POLICY_BACKEND" != "cuda" && "$POLICY_BACKEND" != "mlx" ]]; then
+  echo "POLICY_BACKEND must be cuda or mlx, got '$POLICY_BACKEND'" >&2
   exit 2
 fi
 
@@ -126,13 +132,13 @@ elif compgen -G "$ROLLOUTS_DIR/*/ep_*.json" >/dev/null; then
   exit 1
 fi
 
-echo "== $(date) == eval start: policy=$POLICY suite=$SUITE n_pairs=$N_PAIRS n_envs=$N_ENVS audit_dir=$AUDIT_DIR mode=$([ "$RESUME" = 1 ] && echo resume || ([ "$FORCE" = 1 ] && echo force || echo fresh))"
+echo "== $(date) == eval start: policy=$POLICY backend=$POLICY_BACKEND suite=$SUITE n_pairs=$N_PAIRS n_envs=$N_ENVS audit_dir=$AUDIT_DIR mode=$([ "$RESUME" = 1 ] && echo resume || ([ "$FORCE" = 1 ] && echo force || echo fresh))"
 
 # 0) synthetic self-tests (plain python, no runtime deps) + smoke gate.
 #    Every gate must exit 0 - a nonzero exit aborts the whole run before any
 #    calibration or rollout. The smoke gate adds a best-effort live rollout
 #    when the runtime deps are installed.
-for t in telemetry_rollout safety_scorer stats; do
+for t in telemetry_rollout safety_scorer stats mlx_smolvla; do
   echo "== selftest: $t =="
   python3 "$REPO/scripts/$t.py" --selftest
 done
@@ -155,6 +161,7 @@ for task_id in 0 1 2 3 4; do
     --suite "$SUITE" \
     --task_ids "$task_id" \
     --policy "$POLICY" \
+    --device "$POLICY_BACKEND" \
     --n_envs "$N_ENVS" \
     --n_pairs "$N_PAIRS"
 done
