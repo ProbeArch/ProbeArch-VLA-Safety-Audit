@@ -22,3 +22,11 @@ Thumbs.db
 
 # HuggingFace cache
 .cache/huggingface/
+
+# Agent orchestration state (generated; untracked but must be ignored so the
+# ship.sh dirty-tree guard only sees real changes)
+.pi/
+.pi-glla/
+.codegraph/
+.claude/
+.ruff_cache/
