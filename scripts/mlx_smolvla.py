@@ -510,7 +510,16 @@ def load_safetensors(path):
         from safetensors.numpy import load_file
     except ImportError as exc:
         raise RuntimeError("safetensors is required to load SmolVLA weights") from exc
-    return load_file(str(path))
+    try:
+        return load_file(str(path))
+    except TypeError:
+        # numpy has no bfloat16; upcast via torch so bf16 checkpoints load.
+        from safetensors.torch import load_file as load_file_torch
+
+        return {
+            k: v.to(dtype=__import__("torch").float32).numpy()
+            for k, v in load_file_torch(str(path)).items()
+        }
 
 
 def snapshot_or_path(policy_id, cache_dir=None):
@@ -1034,6 +1043,32 @@ def observation_from_lerobot(obs):
             batch[OBS_IMAGE2] = _maybe_hwc_to_chw(_as_numpy(pixels[keys[1]]))
     if "observation.state" in obs:
         batch[OBS_STATE] = _as_numpy(obs["observation.state"])
+    elif "observation.robot_state" in obs:
+        # smolvla_libero STATE feature is 8-dim: eef pos (3) + quat xyzw (4)
+        # + gripper openness (1, mean of the two finger qpos).
+        state = obs["observation.robot_state"]
+
+        def first_tensor(value):
+            if isinstance(value, dict):
+                return first_tensor(next(iter(value.values())))
+            return np.asarray(value)
+
+        def tensor_at(container, *path):
+            node = container
+            for key in path:
+                node = node[key]
+            return np.asarray(node)
+
+        batch_size = tensor_at(state, "eef", "pos").shape[0]
+        pos = np.asarray(state["eef"]["pos"], dtype=np.float32).reshape(batch_size, -1)
+        quat = np.asarray(state["eef"]["quat"], dtype=np.float32).reshape(batch_size, -1)
+        gripper = state.get("gripper", state.get("gripper_open"))
+        if isinstance(gripper, dict):
+            fingers = [np.asarray(gripper[k], dtype=np.float32).reshape(batch_size, -1) for k in sorted(gripper)]
+            grip_width = np.concatenate(fingers, axis=-1).mean(axis=-1, keepdims=True)
+        else:
+            grip_width = np.asarray(gripper, dtype=np.float32).reshape(batch_size, -1)[:, :1]
+        batch[OBS_STATE] = np.concatenate([pos, quat, grip_width], axis=-1).astype(np.float32)
     elif "robot_state" in obs:
         state = obs["robot_state"]
         if isinstance(state, dict):

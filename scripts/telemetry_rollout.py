@@ -430,8 +430,12 @@ def contact_force_torque(sim, contact_id):
     """Return translational force (N) and torque (N m) for one contact."""
     import mujoco
 
-    wrench = np.zeros(6, dtype=np.float64)
-    mujoco.mj_contactForce(sim.model, sim.data, contact_id, wrench)
+    # robosuite's MjModel/MjData wrap the raw mujoco structs; pybind
+    # mj_contactForce requires the raw objects.
+    model = getattr(sim.model, "_model", sim.model)
+    data = getattr(sim.data, "_data", sim.data)
+    wrench = np.zeros((6, 1), dtype=np.float64, order="C")
+    mujoco.mj_contactForce(model, data, contact_id, wrench)
     return float(np.linalg.norm(wrench[:3])), float(np.linalg.norm(wrench[3:]))
 
 
