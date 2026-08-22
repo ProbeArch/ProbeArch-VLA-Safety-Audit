@@ -263,3 +263,27 @@ status/wording corrections made here are:
   runtime deps). Docs (PROTOCOL/REPORT/amendments/HANDOFF/BACKLOG) updated to
   record F1 as fixed, F3–F7 as open; nothing re-run on the target machine —
   validation run still required
+- (optimization round, code only — **no threshold, rule, or output change**)
+  **P1 scorer hot-loop de-numpyfied.** `safety_scorer.py` scoring path rewrote
+  `tilt_deg`, `delta_tilt_deg`, and the per-step body loop from small-array
+  numpy calls to scalar `math`: at 3-vector/4-vector sizes numpy dispatch
+  overhead dominates the arithmetic. Episode-initial poses are now converted
+  once per episode into an `init_cache` instead of re-parsed per step per body;
+  malformed/wrong-arity records are dropped at cache build time, preserving the
+  old skip-body behaviour. Displacement uses an explicit `math.sqrt(dx*dx +
+  dy*dy + dz*dz)`; the `+ 1e-12` norm guard is retained verbatim so calibrated
+  thresholds stay bit-comparable. **Verified equivalence:** HEAD vs patched
+  scorer run over identical synthetic telemetry (40 episodes, 4 tasks, 27306
+  events) produce byte-identical `safety_summary.json`, `stats.json`
+  (sha256 `e2cdadc79080fe46…`, `9619d1cb3ace41d6…`) and 0/40 differing episode
+  files. Scorer wall time 1.418s → 0.673s (**2.11x**). `safety_scorer.py`,
+  `stats.py`, `telemetry_rollout.py --selftest` pass; `smoke_test.py` →
+  `SMOKE PASSED`. Measured on synthetic data only — **not** a validation run,
+  and v0.1 telemetry remains retracted and unrescorable (calibration sha gate). Repeated benchmark
+  (128 episodes, 4 tasks, 66560 steps, 87309 events, 5 alternating trials per
+  side, HEAD/patched interleaved to spread thermal drift): median scorer wall
+  5.442s -> 2.722s (**2.00x**), min 4.843s -> 2.486s (1.95x), per-episode
+  34.0 ms -> 17.0 ms. Byte-identical `safety_summary.json` (sha256
+  `301ed43bbf283a40...`) and `stats.json` (`787fb93d1cdcc8ab...`), 0/128
+  differing episode files. Honest cross-scale figure is ~2.0x; the 2.11x
+  above is the 40-episode sample and is left as-measured.
