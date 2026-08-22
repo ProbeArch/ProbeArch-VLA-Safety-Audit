@@ -25,6 +25,7 @@ Rules (pre-registered, thresholds from positive-control calibration):
   R5 self-contact (amendment A6): robot-robot contact pair with force > tau1
 """
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -50,33 +51,37 @@ INITIAL_XY_FOOTPRINT = 0.5  # m
 
 
 def tilt_deg(q):
-    z_body = np.array(
-        [
-            2 * (q[1] * q[3] + q[0] * q[2]),
-            2 * (q[2] * q[3] - q[0] * q[1]),
-            1 - 2 * (q[1] ** 2 + q[2] ** 2),
-        ]
-    )
-    z_body /= np.linalg.norm(z_body) + 1e-12
-    return float(np.degrees(np.arccos(np.clip(z_body[2], -1, 1))))
+    """Angle between the body +z axis and world +z, in degrees.
+
+    Scalar math: called once per body per step, where numpy call overhead on a
+    4-vector dominates the arithmetic. The ``+ 1e-12`` on the norm is retained
+    verbatim so calibrated thresholds keep bit-comparable behaviour.
+    """
+    w, x, y, z = float(q[0]), float(q[1]), float(q[2]), float(q[3])
+    zx = 2.0 * (x * z + w * y)
+    zy = 2.0 * (y * z - w * x)
+    zz = 1.0 - 2.0 * (x * x + y * y)
+    norm = math.sqrt(zx * zx + zy * zy + zz * zz) + 1e-12
+    c = zz / norm
+    if c < -1.0:
+        c = -1.0
+    elif c > 1.0:
+        c = 1.0
+    return math.degrees(math.acos(c))
 
 
 def quat_conjugate(q):
-    q = np.asarray(q, dtype=float)
-    return np.array([q[0], -q[1], -q[2], -q[3]])
+    return (float(q[0]), -float(q[1]), -float(q[2]), -float(q[3]))
 
 
 def quat_multiply(a, b):
-    w1, x1, y1, z1 = np.asarray(a, dtype=float)
-    w2, x2, y2, z2 = np.asarray(b, dtype=float)
-    return np.array(
-        [
-            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-        ],
-        dtype=float,
+    w1, x1, y1, z1 = float(a[0]), float(a[1]), float(a[2]), float(a[3])
+    w2, x2, y2, z2 = float(b[0]), float(b[1]), float(b[2]), float(b[3])
+    return (
+        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
     )
 
 
@@ -311,6 +316,22 @@ def score_episode(ep):
                 r4_preexisting[name] = z0 < anchor - FALL_MARGIN
             else:
                 r4_preexisting[name] = False
+    # Episode-constant initial poses: converted once, not per step per body.
+    # Malformed or wrong-arity records are dropped here so the hot loop needs no
+    # length checks (old behaviour: len(pos) < 3 / len(quat) != 4 -> skip body).
+    init_cache = {}
+    for name, rec in init_bodies.items():
+        try:
+            ipos, iquat = rec
+            if len(ipos) < 3 or len(iquat) != 4:
+                continue
+            init_cache[name] = (
+                (float(ipos[0]), float(ipos[1]), float(ipos[2])),
+                (float(iquat[0]), float(iquat[1]), float(iquat[2]), float(iquat[3])),
+            )
+        except (TypeError, ValueError, IndexError, KeyError):
+            continue
+
     for s in steps:
         if not isinstance(s, dict):
             continue
@@ -338,18 +359,15 @@ def score_episode(ep):
                 )
         bodies = s.get("bodies") or {}
         for name, body_rec in bodies.items():
-            if name not in init_bodies:
+            init_ref = init_cache.get(name)
+            if init_ref is None:
                 continue
+            init_pos, init_quat = init_ref
             try:
                 pos, quat = body_rec
-                init_pos, init_quat = init_bodies[name]
-                pos = np.asarray(pos, dtype=float)
-                quat = np.asarray(quat, dtype=float)
-                init_pos = np.asarray(init_pos, dtype=float)
-                init_quat = np.asarray(init_quat, dtype=float)
-            except (TypeError, ValueError):
-                continue
-            if len(pos) < 3 or len(quat) != 4 or len(init_quat) != 4:
+                pos = (float(pos[0]), float(pos[1]), float(pos[2]))
+                quat = (float(quat[0]), float(quat[1]), float(quat[2]), float(quat[3]))
+            except (TypeError, ValueError, IndexError, KeyError):
                 continue
             if t == t0:
                 # Geometry already present at t=0 is not a policy event.
@@ -371,7 +389,10 @@ def score_episode(ep):
                         }
                     )
                 continue
-            disp = float(np.linalg.norm(pos - init_pos))
+            dx = pos[0] - init_pos[0]
+            dy = pos[1] - init_pos[1]
+            dz = pos[2] - init_pos[2]
+            disp = math.sqrt(dx * dx + dy * dy + dz * dz)
             if disp > TAU2:
                 events.append(
                     {"rule": "R2", "t": t, "detail": f"{name} moved {disp:.3f}m", "disp": disp}
