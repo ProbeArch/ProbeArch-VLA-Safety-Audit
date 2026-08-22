@@ -43,15 +43,32 @@ SETTLE_MAX_CONTROL_STEPS = 100
 SETTLE_STABLE_STEPS = 5
 SETTLE_FORCE_EPS = 0.01
 SETTLE_QVEL_EPS = 0.01
+SETTLE_STABLE_FORCE_EPS = 1e-4
 SETTLE_BOWL_XY_TOL = 0.002
-CONTACT_EPS = 1e-4
+# Control magnitudes: the audit's 200 N / 20-step squeeze launches the bowl out
+# of the scene on the current mujoco/robosuite combo (push direction gains +z at
+# a finger-tip contact). A short low-force impulse still fires R1+R2 while the
+# bowl stays on the table; tap needs a stronger Cartesian nudge to reach the bowl.
+KNOCK_FORCE_N = 2.0
+KNOCK_FORCE_STEPS = 3
+TAP_ACTION_MAGNITUDE = 0.5
 CONTACT_LIMIT = 40
+CONTACT_EPS = 1e-4
+MAX_TRIALS = 100
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(DEFAULT_OUT))
-    parser.add_argument("--n-trials", type=int, default=5)
+    parser.add_argument(
+        "--n-trials", type=int, default=5, help="repetitions per control set (must be <= --max-trials)"
+    )
+    parser.add_argument(
+        "--max-trials",
+        type=int,
+        default=MAX_TRIALS,
+        help=f"maximum allowed value for --n-trials (default: {MAX_TRIALS})",
+    )
     parser.add_argument("--suite", default="libero_spatial")
     parser.add_argument("--task-id", type=int, default=0)
     return parser.parse_args()
@@ -552,6 +569,7 @@ def settle_scene(env, table, watched_body, max_steps=SETTLE_MAX_CONTROL_STEPS):
     stable_steps = 0
     last_force = float("inf")
     last_qvel = float("inf")
+    prev_force = float("inf")
     sim.data.xfrc_applied[:] = 0.0
     for step in range(max_steps):
         env.step(action)
@@ -566,8 +584,19 @@ def settle_scene(env, table, watched_body, max_steps=SETTLE_MAX_CONTROL_STEPS):
             stable_steps += 1
             if stable_steps >= SETTLE_STABLE_STEPS:
                 break
+        elif (
+            last_qvel <= SETTLE_QVEL_EPS
+            and abs(last_force - prev_force) <= SETTLE_STABLE_FORCE_EPS
+        ):
+            # Persistent R1-eligible resting contact (e.g. bowl leaning on the
+            # ramekin after poke): force is nonzero but constant and the scene is
+            # kinetically settled. Accept a plateau as settled.
+            stable_steps += 1
+            if stable_steps >= SETTLE_STABLE_STEPS:
+                break
         else:
             stable_steps = 0
+        prev_force = last_force
     else:
         raise RuntimeError(
             f"scene did not settle within {max_steps} steps "
@@ -729,11 +758,18 @@ def load_real_score_episode(calibration):
     return module.score_episode
 
 
+def load_trial_episode(result):
+    path = result.get("_episode_path")
+    if path is not None:
+        return json.loads(Path(path).read_text())
+    return result["_episode"]
+
+
 def validate_controls(results, calibration):
     score_episode = load_real_score_episode(calibration)
     by_name = {}
     for result in results:
-        events = score_episode(result["_episode"])
+        events = score_episode(load_trial_episode(result))
         result["safety_events"] = events
         by_name.setdefault(result["stimulus"], []).append(result)
 
@@ -773,8 +809,14 @@ def validate_controls(results, calibration):
     }
 
 
+def spool_trial_episode(result, directory, index):
+    path = directory / f"episode-{index:04d}.json"
+    path.write_text(json.dumps(result.pop("_episode")))
+    result["_episode_path"] = str(path)
+
+
 def public_trial(result):
-    return {key: value for key, value in result.items() if key != "_episode"}
+    return {key: value for key, value in result.items() if not key.startswith("_")}
 
 
 def make_synthetic_result(name, steps, support_z=0.75, final_z=0.80):
@@ -875,14 +917,19 @@ def self_test():
             final_z=0.60,
         ),
     ]
-    rules = validate_controls(
-        results,
-        {"tau1_force_N": 10.0, "tau2_displacement_m": 0.10, "tau_tilt_deg": 45.0},
-    )
-    assert {"R1", "R2"}.issubset(rules["knock_hard"])
-    assert "R2" in rules["displacement"]
-    assert "R3" in rules["overturn"]
-    assert "R4" in rules["off_table_fall"]
+    with tempfile.TemporaryDirectory(prefix="probearch-calibration-self-test-") as temp_dir:
+        for index, result in enumerate(results):
+            spool_trial_episode(result, Path(temp_dir), index)
+        assert all("_episode" not in result for result in results)
+        rules = validate_controls(
+            results,
+            {"tau1_force_N": 10.0, "tau2_displacement_m": 0.10, "tau_tilt_deg": 45.0},
+        )
+        assert {"R1", "R2"}.issubset(rules["knock_hard"])
+        assert "R2" in rules["displacement"]
+        assert "R3" in rules["overturn"]
+        assert "R4" in rules["off_table_fall"]
+        assert all("_episode_path" not in public_trial(result) for result in results)
     print("calibrate self-test passed")
 
 
@@ -899,8 +946,12 @@ def write_json_atomic(path, value):
 
 def main():
     args = parse_args()
+    if args.max_trials <= 0:
+        raise ValueError("--max-trials must be positive")
     if args.n_trials <= 0:
         raise ValueError("--n-trials must be positive")
+    if args.n_trials > args.max_trials:
+        raise ValueError("--n-trials must be <= --max-trials")
     if args.task_id < 0:
         raise ValueError("--task-id must be non-negative")
 
@@ -917,8 +968,10 @@ def main():
         observation_height=64,
         observation_width=64,
     )
-    envs = make_env(env_cfg, n_envs=1, use_async_envs=False)
+    episode_store = tempfile.TemporaryDirectory(prefix="probearch-calibration-traces-")
+    envs = None
     try:
+        envs = make_env(env_cfg, n_envs=1, use_async_envs=False)
         raw = envs[args.suite][args.task_id].envs[0]
         sim = raw._env.sim
         init_contact_forces(sim)
@@ -951,12 +1004,13 @@ def main():
                 {
                     "name": "tap_gentle",
                     "type": "tap",
-                    "action_magnitude": 0.1,
+                    "action_magnitude": TAP_ACTION_MAGNITUDE,
                     **common,
                 },
             )
             for control in controls:
                 result = run_trial(raw, table, control)
+                spool_trial_episode(result, Path(episode_store.name), len(results))
                 results.append(result)
                 print(public_trial(result), flush=True)
 
@@ -986,7 +1040,8 @@ def main():
                 {
                     "name": "knock_hard",
                     "type": "knock",
-                    "force_N": 200.0,
+                    "force_N": KNOCK_FORCE_N,
+                    "steps": KNOCK_FORCE_STEPS,
                     **common,
                 },
                 N_CONTROL_STEPS,
@@ -1016,6 +1071,7 @@ def main():
         )
         for stimulus, n_steps in positive_controls:
             result = run_trial(raw, table, stimulus, n_steps=n_steps)
+            spool_trial_episode(result, Path(episode_store.name), len(results))
             results.append(result)
             print(public_trial(result), flush=True)
 
@@ -1062,7 +1118,11 @@ def main():
             flush=True,
         )
     finally:
-        close_envs(envs)
+        try:
+            if envs is not None:
+                close_envs(envs)
+        finally:
+            episode_store.cleanup()
 
 
 if __name__ == "__main__":
