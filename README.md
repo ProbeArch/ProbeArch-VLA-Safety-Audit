@@ -44,6 +44,18 @@ results/              archived, retracted v0.1 outputs; forensics only, not curr
 ```
 
 ## How to reproduce
+
+**Pick your platform (same repo, same `py==3.10.20` contract on CUDA per `pins.md`):**
+
+| | CUDA (official, WSL2/Linux) | Apple Silicon M5 (experimental) |
+|---|---|---|
+| Policy backend | `POLICY_BACKEND=cuda` (default) | `POLICY_BACKEND=mlx` |
+| `MUJOCO_GL` | `egl` (auto on Linux) | `glfw` or `cgl` (auto on Darwin) |
+| `AUDIT_DIR` | `~/audit` or `~/audit-cuda` | `~/audit-mlx` (keep separate per backend) |
+| Install | `pins.md` Common + CUDA columns | `pins.md` Common + MLX columns |
+
+Tip: `eval_loop.sh` auto-detects `MUJOCO_GL` (`Darwin→glfw`, else `egl`) — override with `export MUJOCO_GL=...` if needed. Use separate `AUDIT_DIR` per backend so manifests don’t collide (`eval_loop.sh` will refuse to reuse a dir with the wrong backend’s episodes — pass `--force` to discard or `--resume` to continue manifest-matched).
+
 Outputs are written under `$AUDIT_DIR` (default `~/audit`). Run the stages in this
 order — each gate must pass before the next stage:
 
@@ -58,19 +70,19 @@ order — each gate must pass before the next stage:
    `python3 scripts/mlx_smolvla.py --selftest`,
    then `python3 scripts/smoke_test.py` — synthetic success-reader, scorer,
    stats, calibration and MLX-runtime checks (plain python, no runtime deps) plus a
-   best-effort live rollout in smoke_test.py. Each must exit 0; `eval_loop.sh`
+   best-effort live rollout in smoke_test.py. On `POLICY_BACKEND=mlx` the live gate skips CUDA checks (mlx already validated synthetically). Each must exit 0; `eval_loop.sh`
    runs all of them automatically and aborts the run otherwise.
-2. **Small pilot:** `scripts/eval_loop.sh libero_spatial 1 1` (1 pair, 1 env), then
+2. **Small pilot (lowest-d, good for 4GB):** `N_TRIALS=1 MAX_TRIALS=1 scripts/eval_loop.sh libero_spatial 1 1` (1 pair, 1 env, 5 eps total) or `POLICY_BACKEND=mlx N_TRIALS=1 scripts/eval_loop.sh libero_spatial 1 1` — then
    inspect `$AUDIT_DIR/rollouts/*/ep_*.json`, `safety_summary.json` and `stats.json`
-   before committing to the fleet.
+   before committing to the fleet. `N_TRIALS` controls calibrate repetitions (default 5); lowering it keeps py version but reduces time/VRAM pressure — still pilot, not audit (see Wilson CI note below).
 3. **Fleet:** `scripts/eval_loop.sh libero_spatial 8 4` runs the full pipeline
-   (smoke gate -> calibrate -> per-task rollouts -> safety scorer -> stats -> plots).
+   (smoke gate -> calibrate -> per-task rollouts -> safety scorer -> stats -> plots). For a 4GB card, keep `n_envs=1` or `2` if `4` OOMs — manifest records it.
 
 Apple Silicon can swap the policy runtime without changing the physics/scoring
 contract: `POLICY_BACKEND=mlx scripts/eval_loop.sh libero_spatial 1 1` (or
 `python3 scripts/telemetry_rollout.py --device mlx ...`). The CUDA/LeRobot path
 remains the official audit backend. MLX numbers are not interchangeable with
-CUDA numbers until a paired parity run is recorded.
+CUDA numbers until a paired parity run is recorded (see `docs/MLX_HARNESS.md` T4).
 
 `eval_loop.sh` refuses to start when `$AUDIT_DIR/rollouts` already contains episode
 files: pass `--resume` to continue a manifest-matched run (policy, suite, resolution,

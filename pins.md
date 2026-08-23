@@ -7,11 +7,10 @@
 - 2026-08-13: optional Apple Silicon policy backend (`POLICY_BACKEND=mlx` / `telemetry_rollout.py --device mlx`) added. It loads `HuggingFaceVLA/smolvla_libero` through `scripts/mlx_smolvla.py` (MLX when installed, NumPy self-tests otherwise). The official audit pin remains CUDA/LeRobot; MLX results must be labeled separately until a paired parity run exists.
 
 ## Environment matrix (final resolved versions — see notes for deviations)
+
+### Common (both platforms)
 | component | pin | reason |
 |---|---|---|
-| Python | 3.10.20 | lerobot pin requires `>=3.10` (see deviation below) |
-| torch | 2.9.1+cu128 (cp310, manylinux_2_28, local wheel) | |
-| torchvision | 0.24.1+cu128 (cp310, local wheel) | |
 | lerobot (editable) | **d324ffe810d17264a0b1e628698aa1fa09aa639c** | 59ab2862 requires Python>=3.12; d324ffe8 is its parent → last `>=3.10` commit |
 | lerobot.version() | 0.4.5 | resolved at install time |
 | gymnasium | **>=1.1.1,<2.0.0** | success reader depends on 1.x recursed `final_info` shape (per-key arrays); `<2.0.0` caps future shape changes; matches lerobot pin (resolved 1.2.1) |
@@ -24,8 +23,23 @@
 | datasets | 4.8.5 | |
 | egl_probe | 1.0.2 **patched** | sdist declares cmake_minimum_required 2.8.12 → patched to 3.5 in CMakeLists before building |
 | policy | HuggingFaceVLA/smolvla_libero sha 6721902bc4d61e50a3bfdb11dfb4cb626f05d102 (bf16) | |
-| MUJOCO_GL | egl | headless |
-| mlx (optional) | latest Apple Silicon wheel | only when `POLICY_BACKEND=mlx`; not part of the official CUDA audit pin |
+
+### CUDA (official audit, WSL2/Linux, `POLICY_BACKEND=cuda`)
+| component | pin | reason |
+|---|---|---|
+| Python | 3.10.20 | lerobot pin requires `>=3.10`; kept per `dunli`/`moses` agreement |
+| torch | 2.9.1+cu128 (cp310, manylinux_2_28, local wheel) | |
+| torchvision | 0.24.1+cu128 (cp310, local wheel) | |
+| MUJOCO_GL | egl | headless; auto-detected on Linux via `eval_loop.sh` |
+
+### MLX (experimental Apple Silicon, `POLICY_BACKEND=mlx`)
+| component | pin | reason |
+|---|---|---|
+| Python | 3.10.20 (uv venv) or 3.11 | validated with 3.10.20 on M5 via `uv` per `docs/reports/mlx_safety_benchmark_report.md` |
+| mlx | 0.32.1 + mlx-metal (Metal `Device(gpu,0)`) | Apple Silicon backend; `scripts/mlx_smolvla.py` |
+| torch | 2.11.0 (optional, for tokenizer fallback) | not required for MLX inference; present on M5 per report |
+| MUJOCO_GL | glfw (or cgl) | macOS window system; auto-detected on Darwin via `eval_loop.sh` |
+| transformers | 5.5.4 / tokenizers 0.22.2 | validated on M5 |
 
 ## Install procedure quirks (learned; do not "fix" silently)
 1. PyTorch CDN (download.pytorch.org) direct wheel URLs intermittently return AccessDenied; pip installs can hang with established-but-idle sockets. → Download wheels with `curl -C -` (resumable; retry on AccessDenied) and `pip install ./wheel.whl` (no `--index-url cu128`).
