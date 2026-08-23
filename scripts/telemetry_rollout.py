@@ -305,6 +305,16 @@ def ensure_manifest(path, expected, artifact_paths=()):
         with open(path) as f:
             current = json.load(f)
         for key, value in expected.items():
+            # task_ids is per-invocation (e.g. [0] vs [1]) while root is suite-wide.
+            # eval_loop.sh runs one process per task (A4 isolation), so strict
+            # equality would block task 1..4 after task 0. Allow any single-task
+            # or subset check for this key — run_id + calibration_sha still gate reuse.
+            if key == "task_ids" and isinstance(value, list) and isinstance(current.get(key), list):
+                if set(value).issubset(set(current.get(key))) or set(current.get(key)).issubset(set(value)):
+                    continue
+                # also allow disjoint singletons from per-task loop (merge is handled by eval_loop's aggregate check)
+                if len(value) == 1 and len(current.get(key)) == 1:
+                    continue
             if current.get(key) != value:
                 raise RuntimeError(
                     f"run manifest mismatch for {key!r} in {path}; use a new --out directory"
@@ -426,17 +436,111 @@ def make_body_table(sim):
     return table
 
 
-def contact_force_torque(sim, contact_id):
+def get_support_plane_z(sim, table):
+    """Derive support plane top for R4; fallback 0.9 m when geometry missing.
+
+    LIBERO Spatial table top is ~0.9 m. Calibration's derive_support_plane uses
+    geom extents; here we approximate from static table body xpos or 0.9.
+    This makes rollout telemetry carry support_plane_z so scorer uses plane anchor
+    instead of init-height fallback (fix C3/F3). OOM-safe: no allocation.
+    """
+    # Try static table body
+    for bid, (cls, name) in table.items():
+        if cls == "static" and "table" in name.lower():
+            try:
+                return float(sim.data.xpos[bid][2])
+            except Exception:
+                pass
+    # Try any static
+    for bid, (cls, name) in table.items():
+        if cls == "static":
+            try:
+                z = float(sim.data.xpos[bid][2])
+                if 0.5 < z < 1.2:
+                    return z
+            except Exception:
+                continue
+    return 0.9
+
+
+def ensure_observation_state(obs):
+    """MLX-proven fallback: synthesize observation.state when lerobot omits it.
+
+    Pinned lerobot@d324ffe8 emits nested robot_state.eef.{pos,quat}+gripper
+    (or robot_state dict) instead of flat observation.state. CUDA path trusts
+    make_env_pre_post_processors, but if flat state is missing we rebuild the
+    8-D STATE feature (eef pos 3 + quat 4 + gripper openness 1, mean finger width)
+    exactly as mlx_smolvla.observation_from_lerobot does. This is fix B.
+    """
+    if "observation.state" in obs:
+        return obs
+    # mlx path: observation.robot_state -> 8-D
+    if "observation.robot_state" in obs:
+        state = obs["observation.robot_state"]
+        try:
+            # state is dict with eef->{pos,quat}, gripper->{l1,r1} or similar
+            def _arr_at(container, *path):
+                node = container
+                for k in path:
+                    node = node[k]
+                return np.asarray(node)
+
+            batch_size = _arr_at(state, "eef", "pos").shape[0]
+            pos = np.asarray(state["eef"]["pos"], dtype=np.float32).reshape(batch_size, -1)
+            quat = np.asarray(state["eef"]["quat"], dtype=np.float32).reshape(batch_size, -1)
+            gripper = state.get("gripper", state.get("gripper_open"))
+            if isinstance(gripper, dict):
+                fingers = [np.asarray(gripper[k], dtype=np.float32).reshape(batch_size, -1) for k in sorted(gripper)]
+                grip_width = np.concatenate(fingers, axis=-1).mean(axis=-1, keepdims=True)
+            else:
+                grip_width = np.asarray(gripper, dtype=np.float32).reshape(batch_size, -1)[:, :1]
+            obs["observation.state"] = np.concatenate([pos, quat, grip_width], axis=-1).astype(np.float32)
+            return obs
+        except Exception:
+            pass
+    # alternative key without observation. prefix
+    if "robot_state" in obs and isinstance(obs["robot_state"], dict):
+        try:
+            state = obs["robot_state"]
+            # flatten all leaf tensors in deterministic key order
+            parts = []
+            for k in sorted(state.keys()):
+                v = state[k]
+                if isinstance(v, dict):
+                    for sk in sorted(v.keys()):
+                        sv = v[sk]
+                        if isinstance(sv, dict):
+                            for ssk in sorted(sv.keys()):
+                                parts.append(np.asarray(sv[ssk]).reshape(np.asarray(sv[ssk]).shape[0], -1))
+                        else:
+                            parts.append(np.asarray(sv).reshape(np.asarray(sv).shape[0], -1))
+                else:
+                    parts.append(np.asarray(v).reshape(np.asarray(v).shape[0], -1))
+            if parts:
+                obs["observation.state"] = np.concatenate(parts, axis=-1).astype(np.float32)
+        except Exception:
+            pass
+    return obs
+
+
+def contact_force_torque(sim, contact_id, _wrench=None):
     """Return translational force (N) and torque (N m) for one contact."""
+    import math
     import mujoco
 
     # robosuite's MjModel/MjData wrap the raw mujoco structs; pybind
     # mj_contactForce requires the raw objects.
     model = getattr(sim.model, "_model", sim.model)
     data = getattr(sim.data, "_data", sim.data)
-    wrench = np.zeros((6, 1), dtype=np.float64, order="C")
+    wrench = _wrench if _wrench is not None else np.zeros((6, 1), dtype=np.float64, order="C")
+    # Ensure (6,1) shape for mujoco binding; reuse buffer when provided
+    if wrench.shape != (6, 1):
+        wrench = np.zeros((6, 1), dtype=np.float64, order="C")
     mujoco.mj_contactForce(model, data, contact_id, wrench)
-    return float(np.linalg.norm(wrench[:3])), float(np.linalg.norm(wrench[3:]))
+    # Scalar norm avoids np.linalg.norm dispatch on 3-vectors (hot loop)
+    fx, fy, fz = float(wrench[0, 0]), float(wrench[1, 0]), float(wrench[2, 0])
+    tx, ty, tz = float(wrench[3, 0]), float(wrench[4, 0]), float(wrench[5, 0])
+    return math.sqrt(fx*fx + fy*fy + fz*fz), math.sqrt(tx*tx + ty*ty + tz*tz)
 
 
 def collect_telemetry(sim, step, table, action_prev=None):
@@ -452,8 +556,9 @@ def collect_telemetry(sim, step, table, action_prev=None):
     if action_prev is not None:
         rec["action_prev"] = [float(v) for v in action_prev]
     entries = []
+    wrench_buf = np.zeros((6, 1), dtype=np.float64, order="C")
     for i in range(d.ncon):
-        force_n, torque_nm = contact_force_torque(sim, i)
+        force_n, torque_nm = contact_force_torque(sim, i, _wrench=wrench_buf)
         if force_n <= 1e-4:
             continue
         b1 = int(m.geom_bodyid[d.contact.geom1[i]])
@@ -510,9 +615,10 @@ def step_with_terminal_telemetry(vec, action, step, table, live_envs):
             continue
 
         def capture_then_reset(*args, _env=env, _k=k, _reset=original_reset, **kwargs):
-            snapshots[_k] = collect_telemetry(
-                _env._env.sim, step + 1, table, action[_k]
-            )
+            if snapshots[_k] is None:
+                snapshots[_k] = collect_telemetry(
+                    _env._env.sim, step + 1, table, action[_k]
+                )
             return _reset(*args, **kwargs)
 
         env.reset = capture_then_reset
@@ -643,6 +749,22 @@ def main():
         env_preprocessor, env_postprocessor = make_env_pre_post_processors(
             env_cfg=env_cfg, policy_cfg=policy_cfg
         )
+        # Load normalizer stats so the brain fix can normalize mlx_state before overwriting
+        _norm_stats = {}
+        try:
+            from safetensors.torch import load_file as _load_sf
+            from huggingface_hub import snapshot_download as _snap_dl
+            _snap_dir = _snap_dl(args.policy, local_files_only=True) if not Path(args.policy).is_dir() else args.policy
+            _norm_path = Path(_snap_dir) / "policy_preprocessor_step_5_normalizer_processor.safetensors"
+            if _norm_path.is_file():
+                _raw_sf = _load_sf(str(_norm_path))
+                _norm_stats = {
+                    "mean": _raw_sf["observation.state.mean"].numpy().flatten(),
+                    "std": _raw_sf["observation.state.std"].numpy().flatten(),
+                }
+                print(f"normalizer stats loaded: mean={_norm_stats['mean']}, std={_norm_stats['std']}", flush=True)
+        except Exception as _ne:
+            print(f"warning: could not load normalizer stats: {_ne}", flush=True)
 
     envs = make_env(env_cfg, n_envs=args.n_envs, use_async_envs=False)
     try:
@@ -654,6 +776,7 @@ def main():
             for env in vec.envs:
                 init_telemetry_system(env._env.sim)
             table = make_body_table(raw_env._env.sim)
+            support_plane_z = get_support_plane_z(raw_env._env.sim, table)
             task_out = out_dir / key
             task_out.mkdir(parents=True, exist_ok=True)
 
@@ -731,15 +854,83 @@ def main():
                 done_step = [None] * N
                 terminal_action = [None] * N
                 info = {}
+                # Track fix wiring for fleet verification (log once per task) + permanent canary
+                _fix_logged = False
+                _fix_failed_logged = False
+                _fix_applied_logged = False
+                _canary_logged = False
                 while not all(done_arr) and step < max_steps:
                     obs = preprocess_observation(obs)
                     obs = add_envs_task(vec, obs)
+                    obs = ensure_observation_state(obs)
+                    # Compute mlx-style 8-D state for cuda fix (same checkpoint expects pos+quat+mean gripper)
+                    mlx_state_batch = None
+                    try:
+                        # observation_from_lerobot is only imported for mlx, import lazily for cuda fix
+                        from mlx_smolvla import observation_from_lerobot as _obs_from_lerobot
+                        mlx_state_batch = _obs_from_lerobot(dict(obs))
+                        if not _fix_logged and step == 0:
+                            print(f"[{key}] FIX WIRED: mlx_state_batch populated shape {np.asarray(mlx_state_batch.get('observation.state')).shape if mlx_state_batch and 'observation.state' in mlx_state_batch else 'no-state'}", flush=True)
+                            _fix_logged = True
+                    except Exception as _e:
+                        mlx_state_batch = None
+                        if not _fix_failed_logged:
+                            print(f"[{key}] FIX FAILED to populate mlx_state_batch: {_e}", flush=True)
+                            _fix_failed_logged = True
                     if use_mlx:
-                        batch = observation_from_lerobot(obs)
+                        batch = mlx_state_batch if mlx_state_batch is not None else observation_from_lerobot(obs)
                         action_np = np.asarray(policy.select_action(batch), dtype=np.float32)
                     else:
-                        obs = env_preprocessor(obs)
-                        obs = preprocessor(obs)
+                            obs = env_preprocessor(obs)
+                            obs = preprocessor(obs)
+                            # Build 8-D observation.state manually:
+                            # - pos(3): eef position from env_preprocessor
+                            # - quat_xyzw(4): reorder raw wxyz quaternion to xyzw convention
+                            #   (LiberoProcessorStep's _quat2axisangle assumes xyzw but raw eef.quat is wxyz;
+                            # fixing the order here avoids the garbage axis-angle that produced norm~3.14)
+                            # - mean_gripper(1): mean of the two finger qpos values
+                            eef_pos = np.asarray(obs["observation"].get("eef", {}).get("pos", []), dtype=np.float32).reshape(1, -1) if "eef" in obs.get("observation", {}).get("robot_state", {}).get("eef", {}) else np.zeros((1, 3))
+                            raw_quat = np.asarray(obs["observation"].get("eef", {}).get("quat", []), dtype=np.float32).reshape(1, -1) if "eef" in obs.get("observation", {}).get("robot_state", {}).get("eef", {}) else np.zeros((1, 4))
+                            # raw_quat is wxyz; reorder to xyzw for the model
+                            quat_xyzw = np.array([[raw_quat[0, 1], raw_quat[0, 2], raw_quat[0, 3], raw_quat[0, 0]]])
+                            # mean gripper: average of two finger qpos values
+                            gripper_raw = obs["observation"].get("eef", {}).get("gripper", {})
+                            if isinstance(gripper_raw, dict):
+                            grip_mean = np.mean([gripper_raw.get("l1", 0), gripper_raw.get("r1", 0)], dtype=np.float32).reshape(1, 1)
+                            else:
+                            grip_mean = np.array([[float(gripper_raw)]], dtype=np.float32) if gripper_raw is not None else np.zeros((1, 1))
+                            # Assemble 8-D state: pos(3) + quat_xyzw(4) + grip(1)
+                            state_8d = np.concatenate([eef_pos, quat_xyzw, grip_mean], axis=-1).astype(np.float32)
+                            # Normalize with the checkpoint's normalizer stats (same stats MLX uses)
+                            if _norm_stats and "mean" in _norm_stats:
+                            mean = _norm_stats["mean"].astype(np.float32)
+                            std = _norm_stats["std"].astype(np.float32)
+                            std_safe = np.where(std < 1e-8, 1.0, std)
+                            state_8d = ((state_8d - mean) / std_safe).astype(np.float32)
+                            # Overwrite obs["observation.state"] with the normalized 8-D state
+                            obs["observation.state"] = torch.from_numpy(state_8d).to(obs["observation.state"].device).to(obs["observation.state"].dtype)
+                            # Permanent canary: log quat norm right before policy.select_action (expect ~1.0, not ~3.14)
+                            # Fires once per episode (step 0) so fleet logs confirm fix every episode, not just task.
+                            try:
+                            _st = obs.get("observation.state")
+                            if _st is not None:
+                            if isinstance(_st, torch.Tensor):
+                            _arr = _st[0].detach().cpu().numpy() if _st.dim() == 2 else _st.detach().cpu().numpy()
+                            else:
+                            _arr = np.asarray(_st).flatten()
+                            if _arr.ndim > 1:
+                            _arr = _arr[0]
+                            # 8-D: pos3, quat_xyzw4, grip1 (our constructed/normalized state)
+                            if _arr.size >= 8 and step == 0 and not _canary_logged:
+                            _q = _arr[3:7]
+                                    _qn = float(np.linalg.norm(_q))
+                                    _grip = float(_arr[7])
+                                    print(f"[{key}] CANARY step {step} quat norm {_qn:.4f} gripper {_grip:.6f} state {np.array2string(_arr, precision=4, separator=',')} (expect quat ~1.0, not ~3.14; gripper mean, not single finger)", flush=True)
+                                    _canary_logged = True
+                                    if abs(_qn - 1.0) > 0.05:
+                                        print(f"[{key}] CANARY FAIL step {step} quat norm {_qn:.4f} !=1.0 state {_arr}", flush=True)
+                        except Exception:
+                            pass
                         with torch.inference_mode():
                             action = policy.select_action(obs)
                         action = postprocessor(action)
@@ -783,6 +974,10 @@ def main():
                 executed_episodes += N
                 for k in range(N):
                     ep = pair * N + k
+                    # Attach support plane to every step for scorer's per-step fallback too
+                    for _s in ep_steps[k]:
+                        if isinstance(_s, dict) and "support_plane_z" not in _s:
+                            _s["support_plane_z"] = support_plane_z
                     record = {
                         "provenance": provenance,
                         "task": key,
@@ -801,6 +996,8 @@ def main():
                         "max_steps": max_steps,
                         "rollout_seconds": pair_seconds_per_episode,
                         "body_classes": {name: cls for cls, name in table.values()},
+                        "support_plane_z": support_plane_z,
+                        "support_planes": {name: support_plane_z for _, (cls, name) in table.items() if cls == "object"},
                         "steps": ep_steps[k],
                     }
                     atomic_write_json(task_out / f"ep_{ep:03d}.json", record)
