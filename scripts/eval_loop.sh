@@ -24,7 +24,12 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export AUDIT_DIR="${AUDIT_DIR:-$HOME/audit}"
-export MUJOCO_GL="${MUJOCO_GL:-egl}"
+if [[ -z "${MUJOCO_GL:-}" ]]; then
+  case "$(uname -s 2>/dev/null || echo Linux)" in
+    Darwin*) export MUJOCO_GL="glfw" ;;
+    *) export MUJOCO_GL="egl" ;;
+  esac
+fi
 POLICY="${POLICY:-HuggingFaceVLA/smolvla_libero}"
 POLICY_BACKEND="${POLICY_BACKEND:-cuda}"
 
@@ -137,6 +142,7 @@ elif compgen -G "$ROLLOUTS_DIR/*/ep_*.json" >/dev/null; then
   echo "Refusing: $ROLLOUTS_DIR already contains episode files." >&2
   echo "  Stale telemetry (e.g. retracted v0.1) must not be rescored with v0.2 thresholds." >&2
   echo "  Pass --resume to continue a manifest-matched run, or --force to discard and restart." >&2
+  echo "  Tip: use separate AUDIT_DIR per backend, e.g. AUDIT_DIR=~/audit-cuda vs ~/audit-mlx." >&2
   exit 1
 fi
 

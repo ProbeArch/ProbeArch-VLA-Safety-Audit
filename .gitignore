@@ -2,11 +2,16 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv-audit/
 venv/
 *.egg-info/
 
 # Rollout data (large; keep out of git)
 rollouts/
+audit/
+audit-mlx/
+audit-pilot/
+audit-pilot-cuda/
 analysis/results/
 analysis/saved_rollouts/
 
