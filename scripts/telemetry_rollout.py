@@ -18,11 +18,14 @@ Usage:
 """
 import argparse
 import hashlib
+import importlib.util
 import json
+import math
 import os
 import sys
 import time
 import uuid
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -37,6 +40,7 @@ MAX_R1_CONTACTS = 512
 
 # Per-episode init-state id cycles 0..31 (matching the PROTOCOL contract).
 INIT_STATE_CYCLE = 32
+SPATIAL_TASK_IDS = tuple(range(5))
 
 
 def _indexed_bool(value, k, mask=None):
@@ -65,8 +69,8 @@ def _masked_out(mask, k):
         return False
 
 
-def read_success(info, k):
-    """Best-effort terminal ``is_success`` for sub-env ``k`` from vector info.
+def read_success_with_source(info, k):
+    """Return terminal ``is_success`` and the vector-info source for sub-env ``k``.
 
     Handles every shape produced by pinned LiberoEnv.step() + gymnasium vector
     envs (verified against gymnasium 1.2.3 SyncVectorEnv._add_info):
@@ -82,11 +86,11 @@ def read_success(info, k):
 
     The nested branches NEVER return None early: when the final_info form is
     masked out or unusable for ``k``, we ALWAYS fall through to the top-level
-    ``info["is_success"]`` array. None is returned only when nothing usable
+    ``info["is_success"]`` array. ``"none"`` is returned only when nothing usable
     exists at all (or the top-level value is itself masked out).
     """
     if not isinstance(info, dict):
-        return None
+        return None, "none"
 
     fi = info.get("final_info")
     if fi is not None:
@@ -97,7 +101,7 @@ def read_success(info, k):
             if isinstance(entry, dict) and "is_success" in entry:
                 value = _indexed_bool([entry["is_success"]], 0, [True])
                 if value is not None:
-                    return value
+                    return value, "final_info-legacy"
             # Gymnasium >=1.1 recursed per-key arrays with per-key masks.
             value = fi.get("is_success")
             mask = fi.get("_is_success")
@@ -106,19 +110,24 @@ def read_success(info, k):
             if value is not None and not _masked_out(mask, k):
                 value = _indexed_bool(value, k, mask)
                 if value is not None:
-                    return value
+                    return value, "final_info-dict"
         elif isinstance(fi, (list, tuple)) and not _masked_out(outer_mask, k):
             if k < len(fi):
                 entry = fi[k]
                 if isinstance(entry, dict) and "is_success" in entry:
                     value = _indexed_bool([entry["is_success"]], 0, [True])
                     if value is not None:
-                        return value
+                        return value, "final_info-list"
     # Always fall through to the top-level array instead of returning None.
     value = info.get("is_success")
     if value is not None:
-        return _indexed_bool(value, k, info.get("_is_success"))
-    return None
+        result = _indexed_bool(value, k, info.get("_is_success"))
+        return result, "top-level" if result is not None else "top-level-masked"
+    return None, "none"
+
+
+def read_success(info, k):
+    return read_success_with_source(info, k)[0]
 
 
 def run_selftest():
@@ -153,6 +162,11 @@ def run_selftest():
         "is_success": np.array([False, True, False], dtype=bool),
     }
     check("dict-of-arrays: terminated success", read_success(info, 1), True)
+    check(
+        "dict-of-arrays source",
+        read_success_with_source(info, 1),
+        (True, "final_info-dict"),
+    )
     # Env 0 did not terminate this step: mask False -> fall through to top-level.
     check("dict-of-arrays: masked -> top-level", read_success(info, 0), False)
 
@@ -180,15 +194,30 @@ def run_selftest():
         "_final_info": np.array([False, True, False], dtype=bool),
     }
     check("list-of-dicts final_info", read_success(info4, 1), True)
+    check(
+        "list-of-dicts source",
+        read_success_with_source(info4, 1),
+        (True, "final_info-list"),
+    )
     check("list-of-dicts masked -> None", read_success(info4, 0), None)
 
     # 5) legacy {env_index: terminal_info} dict.
     info5 = {"final_info": {1: {"is_success": True}}}
     check("legacy env-index dict", read_success(info5, 1), True)
+    check(
+        "legacy source",
+        read_success_with_source(info5, 1),
+        (True, "final_info-legacy"),
+    )
 
     # 6) top-level array only (no final_info key at all).
     info6 = {"is_success": [False, True, False], "_is_success": [True, True, True]}
     check("top-level array only", read_success(info6, 1), True)
+    check(
+        "top-level source",
+        read_success_with_source(info6, 1),
+        (True, "top-level"),
+    )
     info6b = {"is_success": [False, True, False], "_is_success": [True, True, False]}
     check("top-level array masked -> None", read_success(info6b, 2), None)
 
@@ -238,7 +267,7 @@ def file_sha256(path):
 
 
 def git_revision():
-    """Best-effort HEAD revision of the harness repo ('' when unavailable)."""
+    """Return HEAD, or a digest-qualified revision when tracked files are dirty."""
     import subprocess
 
     root = Path(__file__).resolve().parent.parent
@@ -254,24 +283,35 @@ def git_revision():
         return ""
     if out.returncode != 0:
         return ""
-    return out.stdout.strip()
+    revision = out.stdout.strip()
+    diff = subprocess.run(
+        ["git", "diff", "--binary", "HEAD", "--"],
+        capture_output=True,
+        cwd=root,
+        timeout=10,
+    )
+    if diff.returncode != 0 or not diff.stdout:
+        return revision
+    digest = hashlib.sha256(diff.stdout).hexdigest()[:16]
+    return f"{revision}-dirty-{digest}"
 
 
 def policy_cache_sha256(policy_id):
     """Best-effort SHA-256 of the locally cached policy snapshot.
 
-    Returns None when the snapshot is not cached yet (fresh download required);
-    the manifest then records None and resume compares like-for-like.
+    Returns None when the snapshot is unavailable; callers must fail closed.
     """
     try:
         from huggingface_hub import snapshot_download
 
-        snap = snapshot_download(policy_id, local_files_only=True)
+        local_path = Path(policy_id)
+        snap = local_path if local_path.is_dir() else Path(snapshot_download(policy_id, local_files_only=True))
     except Exception:
         return None
     digest = hashlib.sha256()
     try:
-        for root, _dirs, files in os.walk(snap):
+        for root, dirs, files in os.walk(snap):
+            dirs.sort()
             for name in sorted(files):
                 path = os.path.join(root, name)
                 digest.update(os.path.relpath(path, snap).encode("utf-8", "replace"))
@@ -302,19 +342,11 @@ def resolve_init_state_index(raw_env, init_state_id):
 def ensure_manifest(path, expected, artifact_paths=()):
     """Create an immutable manifest, or validate an existing one exactly."""
     if path.exists():
+        if "policy_sha256" in expected and expected["policy_sha256"] is None:
+            raise RuntimeError("refusing to validate a manifest without a policy digest")
         with open(path) as f:
             current = json.load(f)
         for key, value in expected.items():
-            # task_ids is per-invocation (e.g. [0] vs [1]) while root is suite-wide.
-            # eval_loop.sh runs one process per task (A4 isolation), so strict
-            # equality would block task 1..4 after task 0. Allow any single-task
-            # or subset check for this key — run_id + calibration_sha still gate reuse.
-            if key == "task_ids" and isinstance(value, list) and isinstance(current.get(key), list):
-                if set(value).issubset(set(current.get(key))) or set(current.get(key)).issubset(set(value)):
-                    continue
-                # also allow disjoint singletons from per-task loop (merge is handled by eval_loop's aggregate check)
-                if len(value) == 1 and len(current.get(key)) == 1:
-                    continue
             if current.get(key) != value:
                 raise RuntimeError(
                     f"run manifest mismatch for {key!r} in {path}; use a new --out directory"
@@ -343,7 +375,11 @@ def load_reusable_episode(path, provenance, expected):
     for key, value in expected.items():
         if episode.get(key) != value:
             return None
-    if not isinstance(episode.get("steps"), list) or "rollout_seconds" not in episode:
+    if (
+        not isinstance(episode.get("steps"), list)
+        or "rollout_seconds" not in episode
+        or not isinstance(episode.get("success_source"), str)
+    ):
         return None
     return episode
 
@@ -436,96 +472,45 @@ def make_body_table(sim):
     return table
 
 
-def get_support_plane_z(sim, table):
-    """Derive support plane top for R4; fallback 0.9 m when geometry missing.
-
-    LIBERO Spatial table top is ~0.9 m. Calibration's derive_support_plane uses
-    geom extents; here we approximate from static table body xpos or 0.9.
-    This makes rollout telemetry carry support_plane_z so scorer uses plane anchor
-    instead of init-height fallback (fix C3/F3). OOM-safe: no allocation.
-    """
-    # Try static table body
-    for bid, (cls, name) in table.items():
-        if cls == "static" and "table" in name.lower():
-            try:
-                return float(sim.data.xpos[bid][2])
-            except Exception:
-                pass
-    # Try any static
-    for bid, (cls, name) in table.items():
-        if cls == "static":
-            try:
-                z = float(sim.data.xpos[bid][2])
-                if 0.5 < z < 1.2:
-                    return z
-            except Exception:
-                continue
-    return 0.9
+@lru_cache(maxsize=1)
+def _support_plane_deriver():
+    """Load the calibration support-plane implementation once per process."""
+    path = Path(__file__).with_name("calibrate.py")
+    spec = importlib.util.spec_from_file_location("probearch_calibrate_support", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load support-plane helper from {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.derive_support_plane
 
 
-def ensure_observation_state(obs):
-    """MLX-proven fallback: synthesize observation.state when lerobot omits it.
+def get_support_planes(sim, table):
+    """Return geometry-top support heights for every object in a scene."""
+    derive_support_plane = _support_plane_deriver()
 
-    Pinned lerobot@d324ffe8 emits nested robot_state.eef.{pos,quat}+gripper
-    (or robot_state dict) instead of flat observation.state. CUDA path trusts
-    make_env_pre_post_processors, but if flat state is missing we rebuild the
-    8-D STATE feature (eef pos 3 + quat 4 + gripper openness 1, mean finger width)
-    exactly as mlx_smolvla.observation_from_lerobot does. This is fix B.
-    """
-    if "observation.state" in obs:
-        return obs
-    # mlx path: observation.robot_state -> 8-D
-    if "observation.robot_state" in obs:
-        state = obs["observation.robot_state"]
+    planes = {}
+    for body_id, (body_class, body_name) in table.items():
+        if body_class != "object":
+            continue
         try:
-            # state is dict with eef->{pos,quat}, gripper->{l1,r1} or similar
-            def _arr_at(container, *path):
-                node = container
-                for k in path:
-                    node = node[k]
-                return np.asarray(node)
+            support = derive_support_plane(sim, table, body_id)
+        except RuntimeError:
+            continue
+        planes[body_name] = float(support["z"])
+    return planes
 
-            batch_size = _arr_at(state, "eef", "pos").shape[0]
-            pos = np.asarray(state["eef"]["pos"], dtype=np.float32).reshape(batch_size, -1)
-            quat = np.asarray(state["eef"]["quat"], dtype=np.float32).reshape(batch_size, -1)
-            gripper = state.get("gripper", state.get("gripper_open"))
-            if isinstance(gripper, dict):
-                fingers = [np.asarray(gripper[k], dtype=np.float32).reshape(batch_size, -1) for k in sorted(gripper)]
-                grip_width = np.concatenate(fingers, axis=-1).mean(axis=-1, keepdims=True)
-            else:
-                grip_width = np.asarray(gripper, dtype=np.float32).reshape(batch_size, -1)[:, :1]
-            obs["observation.state"] = np.concatenate([pos, quat, grip_width], axis=-1).astype(np.float32)
-            return obs
-        except Exception:
-            pass
-    # alternative key without observation. prefix
-    if "robot_state" in obs and isinstance(obs["robot_state"], dict):
-        try:
-            state = obs["robot_state"]
-            # flatten all leaf tensors in deterministic key order
-            parts = []
-            for k in sorted(state.keys()):
-                v = state[k]
-                if isinstance(v, dict):
-                    for sk in sorted(v.keys()):
-                        sv = v[sk]
-                        if isinstance(sv, dict):
-                            for ssk in sorted(sv.keys()):
-                                parts.append(np.asarray(sv[ssk]).reshape(np.asarray(sv[ssk]).shape[0], -1))
-                        else:
-                            parts.append(np.asarray(sv).reshape(np.asarray(sv).shape[0], -1))
-                else:
-                    parts.append(np.asarray(v).reshape(np.asarray(v).shape[0], -1))
-            if parts:
-                obs["observation.state"] = np.concatenate(parts, axis=-1).astype(np.float32)
-        except Exception:
-            pass
-    return obs
+
+def common_support_plane_z(support_planes):
+    """Return one shared support height, or None when object supports differ."""
+    values = list(support_planes.values())
+    if not values:
+        return None
+    first = values[0]
+    return first if all(math.isclose(value, first, abs_tol=1e-6) for value in values[1:]) else None
 
 
 def contact_force_torque(sim, contact_id, _wrench=None):
     """Return translational force (N) and torque (N m) for one contact."""
-    import math
     import mujoco
 
     # robosuite's MjModel/MjData wrap the raw mujoco structs; pybind
@@ -655,8 +640,9 @@ def main():
         sys.exit(run_selftest())
     if not args.task_ids:
         ap.error("--task_ids is required (or pass --selftest)")
+    if any(task_id not in SPATIAL_TASK_IDS for task_id in args.task_ids):
+        ap.error(f"task_ids must be within {list(SPATIAL_TASK_IDS)}")
 
-    import gymnasium as gym
     from lerobot.envs.configs import LiberoEnv
     from lerobot.envs.factory import make_env, make_env_pre_post_processors
     from lerobot.envs.utils import add_envs_task, close_envs, preprocess_observation
@@ -670,7 +656,6 @@ def main():
         from mlx_smolvla import observation_from_lerobot
 
         torch = None
-        device = "mlx"
         policy_cfg = None
         preprocessor = None
         postprocessor = None
@@ -682,7 +667,7 @@ def main():
         from lerobot.policies.factory import make_policy, make_pre_post_processors
         from lerobot.utils.utils import get_safe_torch_device
 
-        device = get_safe_torch_device(args.device, log=True)
+        get_safe_torch_device(args.device, log=True)
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -691,27 +676,6 @@ def main():
     ) / "calibration.json"
     if not calibration_path.is_file():
         raise RuntimeError(f"calibration file is required: {calibration_path}")
-    root_expected = {
-        "harness_schema_version": HARNESS_SCHEMA_VERSION,
-        "git_revision": git_revision(),
-        "policy": args.policy,
-        "policy_sha256": policy_cache_sha256(args.policy),
-        "policy_backend": args.device,
-        "suite": args.suite,
-        "task_ids": sorted(args.task_ids),
-        "resolution": [args.resolution, args.resolution],
-        "max_steps_requested": args.max_steps,
-        "n_envs": args.n_envs,
-        "n_pairs": args.n_pairs,
-        "calibration_sha256": file_sha256(calibration_path),
-    }
-    if use_mlx:
-        root_expected["policy_runtime"] = MLX_HARNESS_NAME
-    legacy_artifacts = list(out_dir.glob("*/ep_*.json")) + [out_dir / "metrics.json"]
-    root_manifest = ensure_manifest(
-        out_dir / "run_manifest.json", root_expected, legacy_artifacts
-    )
-
     env_cfg = LiberoEnv(
         task=args.suite,
         task_ids=list(args.task_ids),
@@ -749,22 +713,29 @@ def main():
         env_preprocessor, env_postprocessor = make_env_pre_post_processors(
             env_cfg=env_cfg, policy_cfg=policy_cfg
         )
-        # Load normalizer stats so the brain fix can normalize mlx_state before overwriting
-        _norm_stats = {}
-        try:
-            from safetensors.torch import load_file as _load_sf
-            from huggingface_hub import snapshot_download as _snap_dl
-            _snap_dir = _snap_dl(args.policy, local_files_only=True) if not Path(args.policy).is_dir() else args.policy
-            _norm_path = Path(_snap_dir) / "policy_preprocessor_step_5_normalizer_processor.safetensors"
-            if _norm_path.is_file():
-                _raw_sf = _load_sf(str(_norm_path))
-                _norm_stats = {
-                    "mean": _raw_sf["observation.state.mean"].numpy().flatten(),
-                    "std": _raw_sf["observation.state.std"].numpy().flatten(),
-                }
-                print(f"normalizer stats loaded: mean={_norm_stats['mean']}, std={_norm_stats['std']}", flush=True)
-        except Exception as _ne:
-            print(f"warning: could not load normalizer stats: {_ne}", flush=True)
+    policy_digest = policy_cache_sha256(args.policy)
+    if policy_digest is None:
+        raise RuntimeError(f"could not establish a policy digest for {args.policy!r}")
+    root_expected = {
+        "harness_schema_version": HARNESS_SCHEMA_VERSION,
+        "git_revision": git_revision(),
+        "policy": args.policy,
+        "policy_sha256": policy_digest,
+        "policy_backend": args.device,
+        "suite": args.suite,
+        "task_ids": list(SPATIAL_TASK_IDS),
+        "resolution": [args.resolution, args.resolution],
+        "max_steps_requested": args.max_steps,
+        "n_envs": args.n_envs,
+        "n_pairs": args.n_pairs,
+        "calibration_sha256": file_sha256(calibration_path),
+    }
+    if use_mlx:
+        root_expected["policy_runtime"] = MLX_HARNESS_NAME
+    legacy_artifacts = list(out_dir.glob("*/ep_*.json")) + [out_dir / "metrics.json"]
+    root_manifest = ensure_manifest(
+        out_dir / "run_manifest.json", root_expected, legacy_artifacts
+    )
 
     envs = make_env(env_cfg, n_envs=args.n_envs, use_async_envs=False)
     try:
@@ -776,7 +747,6 @@ def main():
             for env in vec.envs:
                 init_telemetry_system(env._env.sim)
             table = make_body_table(raw_env._env.sim)
-            support_plane_z = get_support_plane_z(raw_env._env.sim, table)
             task_out = out_dir / key
             task_out.mkdir(parents=True, exist_ok=True)
 
@@ -795,6 +765,7 @@ def main():
                 "n_envs": N,
                 "n_pairs": args.n_pairs,
                 "calibration_sha256": root_manifest["calibration_sha256"],
+                "policy_sha256": root_manifest["policy_sha256"],
                 "policy_backend": args.device,
             }
             if use_mlx:
@@ -846,91 +817,30 @@ def main():
                 policy.reset()
                 pair_t0 = time.time()
                 obs, _ = vec.reset()
+                episode_support_planes = [
+                    get_support_planes(vec.envs[k]._env.sim, table) for k in range(N)
+                ]
+                episode_support_z = [
+                    common_support_plane_z(planes) for planes in episode_support_planes
+                ]
                 ep_steps = [[] for _ in range(N)]
                 step = 0
                 done_arr = [False] * N
                 last_action = [None] * N
                 success = [False] * N
+                success_source = ["none"] * N
                 done_step = [None] * N
                 terminal_action = [None] * N
                 info = {}
-                # Track fix wiring for fleet verification (log once per task) + permanent canary
-                _fix_logged = False
-                _fix_failed_logged = False
-                _fix_applied_logged = False
-                _canary_logged = False
                 while not all(done_arr) and step < max_steps:
                     obs = preprocess_observation(obs)
                     obs = add_envs_task(vec, obs)
-                    obs = ensure_observation_state(obs)
-                    # Compute mlx-style 8-D state for cuda fix (same checkpoint expects pos+quat+mean gripper)
-                    mlx_state_batch = None
-                    try:
-                        # observation_from_lerobot is only imported for mlx, import lazily for cuda fix
-                        from mlx_smolvla import observation_from_lerobot as _obs_from_lerobot
-                        mlx_state_batch = _obs_from_lerobot(dict(obs))
-                        if not _fix_logged and step == 0:
-                            print(f"[{key}] FIX WIRED: mlx_state_batch populated shape {np.asarray(mlx_state_batch.get('observation.state')).shape if mlx_state_batch and 'observation.state' in mlx_state_batch else 'no-state'}", flush=True)
-                            _fix_logged = True
-                    except Exception as _e:
-                        mlx_state_batch = None
-                        if not _fix_failed_logged:
-                            print(f"[{key}] FIX FAILED to populate mlx_state_batch: {_e}", flush=True)
-                            _fix_failed_logged = True
                     if use_mlx:
-                        batch = mlx_state_batch if mlx_state_batch is not None else observation_from_lerobot(obs)
-                        action_np = np.asarray(policy.select_action(batch), dtype=np.float32)
+                        policy_observation = observation_from_lerobot(obs)
+                        action_np = np.asarray(policy.select_action(policy_observation), dtype=np.float32)
                     else:
-                            obs = env_preprocessor(obs)
-                            obs = preprocessor(obs)
-                            # Build 8-D observation.state manually:
-                            # - pos(3): eef position from env_preprocessor
-                            # - quat_xyzw(4): reorder raw wxyz quaternion to xyzw convention
-                            #   (LiberoProcessorStep's _quat2axisangle assumes xyzw but raw eef.quat is wxyz;
-                            # fixing the order here avoids the garbage axis-angle that produced norm~3.14)
-                            # - mean_gripper(1): mean of the two finger qpos values
-                            eef_pos = np.asarray(obs["observation"].get("eef", {}).get("pos", []), dtype=np.float32).reshape(1, -1) if "eef" in obs.get("observation", {}).get("robot_state", {}).get("eef", {}) else np.zeros((1, 3))
-                            raw_quat = np.asarray(obs["observation"].get("eef", {}).get("quat", []), dtype=np.float32).reshape(1, -1) if "eef" in obs.get("observation", {}).get("robot_state", {}).get("eef", {}) else np.zeros((1, 4))
-                            # raw_quat is wxyz; reorder to xyzw for the model
-                            quat_xyzw = np.array([[raw_quat[0, 1], raw_quat[0, 2], raw_quat[0, 3], raw_quat[0, 0]]])
-                            # mean gripper: average of two finger qpos values
-                            gripper_raw = obs["observation"].get("eef", {}).get("gripper", {})
-                            if isinstance(gripper_raw, dict):
-                            grip_mean = np.mean([gripper_raw.get("l1", 0), gripper_raw.get("r1", 0)], dtype=np.float32).reshape(1, 1)
-                            else:
-                            grip_mean = np.array([[float(gripper_raw)]], dtype=np.float32) if gripper_raw is not None else np.zeros((1, 1))
-                            # Assemble 8-D state: pos(3) + quat_xyzw(4) + grip(1)
-                            state_8d = np.concatenate([eef_pos, quat_xyzw, grip_mean], axis=-1).astype(np.float32)
-                            # Normalize with the checkpoint's normalizer stats (same stats MLX uses)
-                            if _norm_stats and "mean" in _norm_stats:
-                            mean = _norm_stats["mean"].astype(np.float32)
-                            std = _norm_stats["std"].astype(np.float32)
-                            std_safe = np.where(std < 1e-8, 1.0, std)
-                            state_8d = ((state_8d - mean) / std_safe).astype(np.float32)
-                            # Overwrite obs["observation.state"] with the normalized 8-D state
-                            obs["observation.state"] = torch.from_numpy(state_8d).to(obs["observation.state"].device).to(obs["observation.state"].dtype)
-                            # Permanent canary: log quat norm right before policy.select_action (expect ~1.0, not ~3.14)
-                            # Fires once per episode (step 0) so fleet logs confirm fix every episode, not just task.
-                            try:
-                            _st = obs.get("observation.state")
-                            if _st is not None:
-                            if isinstance(_st, torch.Tensor):
-                            _arr = _st[0].detach().cpu().numpy() if _st.dim() == 2 else _st.detach().cpu().numpy()
-                            else:
-                            _arr = np.asarray(_st).flatten()
-                            if _arr.ndim > 1:
-                            _arr = _arr[0]
-                            # 8-D: pos3, quat_xyzw4, grip1 (our constructed/normalized state)
-                            if _arr.size >= 8 and step == 0 and not _canary_logged:
-                            _q = _arr[3:7]
-                                    _qn = float(np.linalg.norm(_q))
-                                    _grip = float(_arr[7])
-                                    print(f"[{key}] CANARY step {step} quat norm {_qn:.4f} gripper {_grip:.6f} state {np.array2string(_arr, precision=4, separator=',')} (expect quat ~1.0, not ~3.14; gripper mean, not single finger)", flush=True)
-                                    _canary_logged = True
-                                    if abs(_qn - 1.0) > 0.05:
-                                        print(f"[{key}] CANARY FAIL step {step} quat norm {_qn:.4f} !=1.0 state {_arr}", flush=True)
-                        except Exception:
-                            pass
+                        obs = env_preprocessor(obs)
+                        obs = preprocessor(obs)
                         with torch.inference_mode():
                             action = policy.select_action(obs)
                         action = postprocessor(action)
@@ -956,7 +866,8 @@ def main():
                             done_arr[k] = True
                             done_step[k] = step + 1
                             terminal_action[k] = [float(v) for v in action_np[k]]
-                            value = read_success(info, k)
+                            value, source = read_success_with_source(info, k)
+                            success_source[k] = source
                             if value is not None:
                                 success[k] = value
                     step += 1
@@ -964,7 +875,8 @@ def main():
                     if not done_arr[k]:
                         sim = vec.envs[k]._env.sim
                         ep_steps[k].append(collect_telemetry(sim, step, table, last_action[k]))
-                        value = read_success(info, k)
+                        value, source = read_success_with_source(info, k)
+                        success_source[k] = source
                         if value is not None:
                             success[k] = value
 
@@ -974,10 +886,6 @@ def main():
                 executed_episodes += N
                 for k in range(N):
                     ep = pair * N + k
-                    # Attach support plane to every step for scorer's per-step fallback too
-                    for _s in ep_steps[k]:
-                        if isinstance(_s, dict) and "support_plane_z" not in _s:
-                            _s["support_plane_z"] = support_plane_z
                     record = {
                         "provenance": provenance,
                         "task": key,
@@ -992,14 +900,19 @@ def main():
                         ),
                         "terminal_action": terminal_action[k],
                         "success": success[k],
+                        "success_source": success_source[k],
                         "n_steps": done_step[k] if done_step[k] is not None else max_steps,
                         "max_steps": max_steps,
                         "rollout_seconds": pair_seconds_per_episode,
                         "body_classes": {name: cls for cls, name in table.values()},
-                        "support_plane_z": support_plane_z,
-                        "support_planes": {name: support_plane_z for _, (cls, name) in table.items() if cls == "object"},
                         "steps": ep_steps[k],
                     }
+                    support_plane_z = episode_support_z[k]
+                    support_planes = episode_support_planes[k]
+                    if support_plane_z is not None:
+                        record["support_plane_z"] = support_plane_z
+                    if support_planes:
+                        record["support_planes"] = support_planes
                     atomic_write_json(task_out / f"ep_{ep:03d}.json", record)
                 if (pair + 1) % 5 == 0 or any(success):
                     print(

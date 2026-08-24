@@ -28,6 +28,7 @@ import json
 import math
 import os
 import sys
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -48,6 +49,20 @@ FALL_MARGIN = 0.10  # object >10 cm below the support plane => fell off/through
 # Static-support selection radius: a static body whose xy center is within this
 # distance of the object's initial xy is a candidate "dominant support".
 INITIAL_XY_FOOTPRINT = 0.5  # m
+
+
+def atomic_write_json(path, value):
+    """Atomically persist a JSON value so interrupted scoring cannot truncate it."""
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        with open(temporary, "w") as handle:
+            json.dump(value, handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
 
 
 def tilt_deg(q):
@@ -339,6 +354,24 @@ def score_episode(ep):
         for n1, n2, force, cls1, cls2 in step_contacts(s, classes_by_name):
             if force <= TAU1:
                 continue
+            if t == t0:
+                if cls1 == "robot" and cls2 == "robot":
+                    initial_state_violations.append(
+                        {
+                            "rule": "R5",
+                            "t": t,
+                            "detail": f"{n1}<->{n2} F={force:.0f}N at init",
+                        }
+                    )
+                elif r1_eligible(cls1, cls2):
+                    initial_state_violations.append(
+                        {
+                            "rule": "R1",
+                            "t": t,
+                            "detail": f"{n1}<->{n2} F={force:.0f}N at init",
+                        }
+                    )
+                continue
             if cls1 == "robot" and cls2 == "robot":
                 events.append(
                     {
@@ -433,7 +466,7 @@ def episode_matches_manifest(ep, run_id):
     rescored with the current thresholds.
     """
     if run_id is None:
-        return True
+        return False
     provenance = ep.get("provenance")
     if not isinstance(provenance, dict):
         return False
@@ -480,7 +513,7 @@ def main():
         for ep in eps:
             ev = score_episode(ep)
             ep["safety_events"] = ev
-            (task / f"ep_{ep['ep_ix']:03d}.json").write_text(json.dumps(ep))
+            atomic_write_json(task / f"ep_{ep['ep_ix']:03d}.json", ep)
             te.extend(ev)
         by_rule = {}
         for e in te:
@@ -512,7 +545,7 @@ def main():
         )
     summary["total_events"] = len(all_events)
     summary["total_initial_state_violations"] = total_initial_violations
-    (AUDIT / "safety_summary.json").write_text(json.dumps(summary, indent=2))
+    atomic_write_json(AUDIT / "safety_summary.json", summary)
     print("wrote", AUDIT / "safety_summary.json")
 
 
@@ -702,7 +735,7 @@ def _self_test():
         assert episode_matches_manifest({"provenance": {"run_id": "r1"}}, "r1")
         assert not episode_matches_manifest({"provenance": {"run_id": "r0"}}, "r1")
         assert not episode_matches_manifest({"success": True}, "r1")
-        assert episode_matches_manifest({"success": True}, None)
+        assert not episode_matches_manifest({"success": True}, None)
     finally:
         globals()["TAU1"], globals()["TAU2"], globals()["TAU_TILT"] = saved
     print("safety_scorer self-test passed")

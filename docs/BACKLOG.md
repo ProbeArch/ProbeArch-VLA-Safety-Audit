@@ -39,38 +39,24 @@ do not cite them as current findings. If your team works on robot VLA safety
 cases, we'd like to swap notes on rule design and calibration protocols — reply
 and we'll share the report draft early.
 
-## Open hardening items from the telemetry re-review (F3–F7, docs/REVIEW_telemetry.md)
-Referenced as pending items from PROTOCOL §2/§3 and HANDOFF risk notes. None of
-these block the validation run; all are post-validation hardening.
-- [ ] **F3 — record support geometry in rollout telemetry.** `telemetry_rollout.py`
-  records no `support_plane_z` / `support_planes` / `static_bodies`, so
-  production R4 episodes are scored against the own-init-height fallback anchor;
-  only `calibrate.run_trial` control episodes (incl. `off_table_fall`) carry the
-  support plane. Emit it per task from static contact geometry as
-  `calibrate.derive_support_plane` does; then the scorer's support-plane R4 is
-  the production path, not just the control path.
-- [ ] **F4 — dirty-tree digest in the run manifest.** `git_revision` is plain
-  `git rev-parse HEAD` (currently the v0.1-era commit `647b191`); all fixes are
-  uncommitted, so `--resume` cannot detect working-tree code changes. Add a
-  digest of the working-tree `scripts/` (e.g. sha256 of the sorted file hashes)
-  to `run_manifest.json` and match on it.
-- [ ] **F5 — `success_source` diagnostic.** `read_success` `None` reads are
-  silently recorded as `False` with no record of which info source produced the
-  value; a drift of the pinned gymnasium `final_info` shape would silently
-  re-create C1. Record `success_source` (e.g. `final_info-dict` /
-  `final_info-list` / `legacy` / `top-level` / `none`) per episode; the synthetic
-  shape tests in `smoke_test.py` and `telemetry_rollout.py --selftest` are the
-  tripwire until then.
-- [ ] **F6 — hard-fail on missing run manifest in standalone scorer/stats.**
-  `eval_loop.sh` verifies every task dir carries a `run_manifest.json` with the
-  root `run_id` (post-rollout check), but a standalone `safety_scorer.py` /
-  `stats.py` run still admits episodes when a task dir has no manifest at all.
-  Make `episode_matches_manifest` reject a missing run id outside the loop too.
-- [ ] **F7 — preserve R1-eligible contacts in calibration truncation (low).**
-  `calibrate.prioritize_r1` truncates by force rank only (`[:CONTACT_LIMIT]`),
-  unlike rollout telemetry which never evicts robot-object / object-object
-  contacts. Low practical risk (calibration scenes have few contacts), but make
-  it symmetric with `collect_telemetry`.
+## Telemetry re-review closure (F3–F7, docs/REVIEW_telemetry.md)
+F3–F7 are closed in the current producer/consumer path. The remaining work is
+target-machine validation and re-derived calibration, not static hardening.
+- [x] **F3 — record support geometry in rollout telemetry.** Per-object support
+  planes use the same `calibrate.derive_support_plane` geometry-top calculation;
+  a common support height is emitted in the compact field when applicable.
+- [x] **F4 — dirty-tree digest in the run manifest.** `git_revision` includes a
+  digest of the tracked `git diff HEAD` when source is dirty, and policy digest
+  absence is a hard error for manifest validation.
+- [x] **F5 — `success_source` diagnostic.** `read_success_with_source` records
+  the terminal info shape used for every episode, including explicit masked/none
+  outcomes; synthetic shape tests cover the source labels.
+- [x] **F6 — hard-fail on missing run manifest in standalone consumers.**
+  `safety_scorer.py`, `stats.py`, and `plots.py` reject episodes when a task
+  manifest is absent or unreadable, in addition to filtering mismatched run IDs.
+- [x] **F7 — preserve R1-eligible contacts in calibration truncation (low).**
+  `calibrate.prioritize_r1` retains eligible contacts before filling the remaining
+  contact budget, matching `collect_telemetry`.
 
 ## Long-term
 - Extend rule set: task semantics (action preconditions), temporal ordering, reward hacking

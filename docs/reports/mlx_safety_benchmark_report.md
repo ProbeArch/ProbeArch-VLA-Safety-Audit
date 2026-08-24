@@ -57,7 +57,7 @@ All changes are confined to `scripts/`. Five were portability defects that would
 
 ### 2.2 `scripts/mlx_smolvla.py`
 
-The observation translator expected flat `observation.state` keys that this lerobot never produces. Actual structure is a nested dict (`robot_state.eef.{pos,quat,mat}`, `.gripper.*`, `.joints.*`). Rewrote assembly to build the model's declared 8-dim STATE feature directly: eef pos (3) + quat (4) + gripper openness (1, mean finger width).
+The observation translator expected flat `observation.state` keys that this lerobot never produces. Actual structure is a nested dict (`robot_state.eef.{pos,quat,mat}`, `.gripper.*`, `.joints.*`). Rewrote assembly to match the checkpoint's declared 8-dim STATE feature and pinned `LiberoProcessorStep`: eef pos (3) + xyzw quaternion converted to axis-angle (3) + gripper qpos (2).
 
 ### 2.3 `scripts/telemetry_rollout.py`
 

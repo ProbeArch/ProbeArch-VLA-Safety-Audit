@@ -53,6 +53,7 @@ KNOCK_FORCE_N = 2.0
 KNOCK_FORCE_STEPS = 3
 TAP_ACTION_MAGNITUDE = 0.5
 CONTACT_LIMIT = 40
+MAX_R1_CONTACTS = 512
 CONTACT_EPS = 1e-4
 MAX_TRIALS = 100
 
@@ -525,8 +526,12 @@ def move_off_table(sim, body_id, support):
 
 
 def prioritize_r1(contacts, classified):
-    """Apply the same force-ranked top-40 contact policy as rollouts."""
-    kept = list(zip(contacts, classified))[:CONTACT_LIMIT]
+    """Keep eligible contacts before filling the remaining contact budget."""
+    pairs = list(zip(contacts, classified))
+    eligible = [pair for pair in pairs if r1_eligible(pair[1][3], pair[1][4])]
+    other = [pair for pair in pairs if not r1_eligible(pair[1][3], pair[1][4])]
+    kept = eligible[:MAX_R1_CONTACTS]
+    kept.extend(other[: max(0, CONTACT_LIMIT - len(kept))])
     return [contact for contact, _ in kept], [cl for _, cl in kept]
 
 
@@ -898,16 +903,20 @@ def self_test():
     assert canonicalize_body_table({0: ("static", "table")})[0][0] == "static"
     assert round_up(0.001, 4) == 0.001
 
-    # R1-eligible contacts must never be evicted by the contact budget.
-    many = CONTACT_LIMIT + 20
-    all_contacts = [[f"static{i}", "bowl", 1.0] for i in range(many)]
+    eligible_count = 20
+    static_count = CONTACT_LIMIT + 20
+    all_contacts = [[f"robot{i}", "bowl", 1.0] for i in range(eligible_count)]
+    all_contacts.extend([[f"static{i}", "bowl", 1.0] for i in range(static_count)])
     all_classes = [
-        [f"static{i}", "bowl", 1.0, "static", "static"] for i in range(many)
+        [f"robot{i}", "bowl", 1.0, "robot", "object"] for i in range(eligible_count)
     ]
+    all_classes.extend(
+        [[f"static{i}", "bowl", 1.0, "static", "static"] for i in range(static_count)]
+    )
     kept_contacts, kept_classes = prioritize_r1(all_contacts, all_classes)
     assert len(kept_contacts) == CONTACT_LIMIT
-    assert ["static0", "bowl", 1.0] in kept_contacts
-    assert not any(r1_eligible(cl[3], cl[4]) for cl in kept_classes)
+    assert all([f"robot{i}", "bowl", 1.0] in kept_contacts for i in range(eligible_count))
+    assert any(r1_eligible(cl[3], cl[4]) for cl in kept_classes)
 
     upright = [1.0, 0.0, 0.0, 0.0]
     overturned = [math.sqrt(0.5), math.sqrt(0.5), 0.0, 0.0]

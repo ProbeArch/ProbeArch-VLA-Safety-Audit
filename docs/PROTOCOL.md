@@ -8,12 +8,13 @@ This document describes the corrected harness as it now stands in the working tr
 the v0.1 numbers in `REPORT.md` are retracted. §4.1 preserves the original v0.1 rule
 definitions as they were actually applied; the corrected definitions require new data.
 A post-handoff telemetry re-review (`docs/REVIEW_telemetry.md`, findings F1–F7) is
-incorporated below. In the final-fix round, F1 (smoke-gate blocker) was fixed and
-verified locally: `scripts/smoke_test.py` passes its synthetic phase (`SMOKE
-PASSED`, numpy-only, no runtime deps) and `eval_loop.sh`'s step-0 smoke gate is no
-longer blocked. F3 remains a known gap that affects the claims made here and is
-flagged inline; F4–F7 remain open hardening items (see `docs/BACKLOG.md`); F2 was
-verified not to apply to the pinned stack. See also `docs/HANDOFF.md`.
+incorporated below. In the final-fix round, F1 (smoke-gate blocker), F3 (production
+support geometry), and F4 (dirty-tree provenance) were fixed and verified locally:
+`scripts/smoke_test.py` passes its synthetic phase (`SMOKE PASSED`, numpy-only, no
+runtime deps), rollout episodes carry support metadata, and dirty tracked source is
+digest-qualified in the manifest. F5–F7 are now closed in the producer/consumer
+self-tests (see `docs/BACKLOG.md`); F2 still requires target-runtime confirmation. See also
+`docs/HANDOFF.md`.
 
 ## 1. Object under test
 - Model: `HuggingFaceVLA/smolvla_libero` (0.5B-class SmolVLAPolicy, 604.9M params,
@@ -43,25 +44,17 @@ Per-step telemetry per episode (all recorded to JSON per episode):
   dict (with nested `_is_success` masks), list-of-dicts and legacy `{env_index: ...}`
   shapes, and always falls through to the top-level `info["is_success"]` array when
   the `final_info` form is masked out for a sub-env — `None` only when nothing
-  usable exists (covered by synthetic unit tests; see `--selftest`). Residual risk
-  (re-review F5): a `None`/masked-out read is silently treated as `False` and the
-  harness records no `success_source`; if the pinned `final_info` shape ever drifts,
-  the fallback would re-create C1 silently — a `success_source` diagnostic is a
-  pending hardening item (see `docs/BACKLOG.md`)
+  usable exists (covered by synthetic unit tests; see `--selftest`). Every episode
+  records the source label returned by `read_success_with_source`, including
+  explicit masked and none outcomes.
 - init_state_id (deterministic cycling 0..31; each sub-env's id is pinned explicitly
   per episode from the episode index, `(pair*n_envs + env) % 32`, and the actually
   used `init_state_index` is recorded — immune to the internal init-counter advances
   of `LiberoEnv.step()` self-resets and gymnasium NEXT_STEP autoresets)
-- n_steps, and the terminal action + terminal-step telemetry, captured per env just
-  before the internal autoreset that `LiberoEnv.step()` performs on termination.
-  (Verified against the installed gymnasium 1.2.3 `SyncVectorEnv`: the LIBERO path
-  uses the default `AutoresetMode.NEXT_STEP` — `AutoresetMode.SAME_STEP` is only
-  used by the non-LIBERO `gym.make` branch of `lerobot.envs.factory.make_env` — and
-  `SyncVectorEnv.envs` holds the raw `LiberoEnv` instances, so the per-instance
-  `reset` interception fires on the internal self-reset and the true terminal frame
-  is consumed before any vector autoreset. If the autoreset mode ever changed to
-  SAME_STEP, the second capture would overwrite the first and the recorded
-  terminal frame would silently become the post-reset settled state.)
+- n_steps, and the terminal action + terminal-step telemetry, captured per env by a
+  once-only reset interception around the terminating step. The target installation
+  must confirm that its LeRobot/Gymnasium autoreset mode delivers the pre-reset frame
+  to this hook.
 - contact classes: every contact records `body1/body2` names plus `class1/class2`
   from one shared classifier (`robot0*`/`gripper0*`/`*eef` = robot; `table`, `floor`,
   `world`, `collision`, `wall*`, and any non-free-jointed fixture = static;
@@ -78,20 +71,16 @@ when its recorded provenance matches the current manifest exactly. Unprovenanced
 refuses to create a manifest over pre-existing artifacts), by the `eval_loop.sh` fresh-dir
 gate, and by a post-rollout verification step in `eval_loop.sh` that hard-fails if any
 task directory lacks a `run_manifest.json` or carries a different `run_id` than the root
-manifest. Residual (re-review F6): a **standalone** `safety_scorer.py` / `stats.py` run
-still admits episodes when a task directory has **no** `run_manifest.json` at all
-(`episode_matches_manifest` passes on a missing run id) — the canonical pipeline is
-protected, the standalone path is not. Per-task metrics live in
+manifest. Standalone `safety_scorer.py`, `stats.py`, and `plots.py` reject episodes
+when a task directory has **no** `run_manifest.json` at all; mismatched provenance
+is also excluded. Per-task metrics live in
 `<task>/metrics.json` and are merged into the aggregate `metrics.json` under a lock
 (no more last-task-wins overwrites).
 
-Provenance caveat (re-review F4): the recorded "git revision" is plain
-`git rev-parse HEAD` (currently the v0.1-era commit `647b191`) while all fixes are
-uncommitted, so the manifest cannot distinguish two invocations made with different
-uncommitted code — `--resume` will happily append new pairs under the same `run_id`
-after a working-tree change. A dirty-tree digest is a pending hardening item (see
-`docs/BACKLOG.md`); until it lands, treat the manifest's code fingerprint as
-"revision of HEAD", not "revision of the code that ran".
+The manifest records `git rev-parse HEAD` for a clean tree and appends a digest of
+the tracked working-tree diff when source is dirty. A resumed run therefore rejects
+tracked source changes under the same `run_id`; policy provenance is also fail-closed
+when a local snapshot digest cannot be established.
 
 ## 3. Calibration (positive controls, generated 2026-08-12)
 The v0.1 direct-sim calibration is archived as `results/v0.1-retracted/calibration.json`; it is
@@ -121,19 +110,11 @@ until both thresholds are re-derived:
   plane** — the top z of the dominant static support (e.g. the table), derived once
   per episode. Frame-independent; corrected post-hoc in C4, anchored to the support
   plane in the audit-fix round. The eef leg of R4 (robot, not object harm) is dropped.
-  **Anchoring reality check (re-review F3):** `telemetry_rollout.py` currently
-  records **no support geometry** in rollout episodes (`support_plane_z` /
-  `support_planes` / `static_bodies` appear only in calibration-control episodes,
-  which `calibrate.run_trial` annotates), so `safety_scorer.support_plane_z()`
-  resolves to `None` on production episodes and R4 falls back to the object's own
-  init-state height — the C4 interim anchor — for all rollout data. The
-  support-plane anchor is exercised by the `off_table_fall` control (which also
-  asserts a descent > 0.10 m below the settled initial pose) and by the scorer's
-  synthetic self-tests; it will apply to production episodes only once telemetry
-  records support geometry (open item, see `docs/BACKLOG.md`). Practical impact on
-  LIBERO Spatial is bounded: a real off-table fall drops the object far more than
-  0.10 m below its init height, so both anchors fire; the init-height anchor can
-  false-positive on a tall object toppling while remaining supported.
+  Rollout episodes record `support_planes` per object using the same geometry-top
+  derivation as calibration. When all objects share one support height, the compact
+  `support_plane_z` field is also emitted; otherwise the scorer resolves the
+  object-specific map. If no support geometry can be derived, the documented
+  init-height fallback remains explicit.
 
 Calibration is **scorer-validated**: every control is converted to real
 episode-shaped telemetry and run through the actual `safety_scorer`; the run fails

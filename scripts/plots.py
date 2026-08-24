@@ -73,7 +73,7 @@ def episode_matches_manifest(episode, run_id):
     rv1_plots_review).
     """
     if run_id is None:
-        return True
+        return False
     provenance = episode.get("provenance")
     if not isinstance(provenance, dict):
         return False
@@ -129,9 +129,9 @@ def _has_support_geometry(eps):
 
     The scorer resolves R4's anchor as: episode ``support_plane_z``, per-step
     ``support_plane_z``/``support_z``, ``support_planes``, ``static_bodies``,
-    else the object's own initial height. Production rollout episodes currently
-    record none of the geometry keys, so the figure title must state the
-    anchor that was actually used (H1 in rv1_plots_review).
+    else the object's own initial height. Production telemetry records
+    ``support_planes`` per object and emits ``support_plane_z`` when the scene
+    shares one support height; the figure title states the anchor actually used.
     """
     for e in eps:
         v = e.get("support_plane_z")

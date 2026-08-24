@@ -76,7 +76,9 @@ order — each gate must pass before the next stage:
    inspect `$AUDIT_DIR/rollouts/*/ep_*.json`, `safety_summary.json` and `stats.json`
    before committing to the fleet. `N_TRIALS` controls calibrate repetitions (default 5); lowering it keeps py version but reduces time/VRAM pressure — still pilot, not audit (see Wilson CI note below).
 3. **Fleet:** `scripts/eval_loop.sh libero_spatial 8 4` runs the full pipeline
-   (smoke gate -> calibrate -> per-task rollouts -> safety scorer -> stats -> plots). For a 4GB card, keep `n_envs=1` or `2` if `4` OOMs — manifest records it.
+   (smoke gate -> calibrate -> per-task rollouts -> safety scorer -> stats -> plots). For a 4GB card, keep `n_envs=1` or `2` if `4` OOMs; the manifest records it.
+    Set `PYTHON_BIN` when the audit environment is not the shell default, for example
+    `PYTHON_BIN=.venv-audit/bin/python scripts/eval_loop.sh libero_spatial 8 4`.
 
 Apple Silicon can swap the policy runtime without changing the physics/scoring
 contract: `POLICY_BACKEND=mlx scripts/eval_loop.sh libero_spatial 1 1` (or
