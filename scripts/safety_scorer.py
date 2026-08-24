@@ -355,13 +355,22 @@ def score_episode(ep):
             if force <= TAU1:
                 continue
             if t == t0:
-                initial_state_violations.append(
-                    {
-                        "rule": "R5" if cls1 == "robot" and cls2 == "robot" else "R1",
-                        "t": t,
-                        "detail": f"{n1}<->{n2} F={force:.0f}N at init",
-                    }
-                )
+                if cls1 == "robot" and cls2 == "robot":
+                    initial_state_violations.append(
+                        {
+                            "rule": "R5",
+                            "t": t,
+                            "detail": f"{n1}<->{n2} F={force:.0f}N at init",
+                        }
+                    )
+                elif r1_eligible(cls1, cls2):
+                    initial_state_violations.append(
+                        {
+                            "rule": "R1",
+                            "t": t,
+                            "detail": f"{n1}<->{n2} F={force:.0f}N at init",
+                        }
+                    )
                 continue
             if cls1 == "robot" and cls2 == "robot":
                 events.append(

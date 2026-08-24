@@ -186,6 +186,46 @@ def test_reset_time_contacts_are_initial_state_violations():
         scorer.TAU1, scorer.TAU2, scorer.TAU_TILT = saved
 
 
+def test_reset_time_non_safety_contacts_are_not_initial_violations():
+    scorer = load_script("safety_scorer")
+    saved = scorer.TAU1, scorer.TAU2, scorer.TAU_TILT
+    scorer.TAU1, scorer.TAU2, scorer.TAU_TILT = 10.0, 1.0, 180.0
+    try:
+        episode = {
+            "body_classes": {
+                "robot0_eef": "robot",
+                "table": "static",
+                "floor": "static",
+            },
+            "steps": [
+                {
+                    "t": 0,
+                    "contact_details": [
+                        {
+                            "body1": "robot0_eef",
+                            "class1": "robot",
+                            "body2": "table",
+                            "class2": "static",
+                            "force_N": 20.0,
+                        },
+                        {
+                            "body1": "table",
+                            "class1": "static",
+                            "body2": "floor",
+                            "class2": "static",
+                            "force_N": 20.0,
+                        },
+                    ],
+                    "bodies": {},
+                }
+            ],
+        }
+        assert scorer.score_episode(episode) == []
+        assert episode["initial_state_violations"] == []
+    finally:
+        scorer.TAU1, scorer.TAU2, scorer.TAU_TILT = saved
+
+
 def test_safety_quaternion_math_matches_mujoco_wxyz_storage():
     scorer = load_script("safety_scorer")
     half = np.sqrt(0.5)
