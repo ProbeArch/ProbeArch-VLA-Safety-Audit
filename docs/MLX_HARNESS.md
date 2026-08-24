@@ -138,7 +138,7 @@ POLICY_BACKEND=mlx scripts/eval_loop.sh libero_spatial 8 4
 - Replacing the official CUDA audit pin
 - Treating MLX success/safety rates as interchangeable with CUDA rates
 - Running Visual/NEW suites (still Spatial-only)
-- Closing F3–F7 from [`docs/BACKLOG.md`](BACKLOG.md)
+- Target-machine validation and paired CUDA/MLX parity; F3–F7 are closed statically in [`docs/BACKLOG.md`](BACKLOG.md)
 
 ## Related
 

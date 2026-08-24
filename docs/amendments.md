@@ -287,3 +287,17 @@ status/wording corrections made here are:
   `301ed43bbf283a40...`) and `stats.json` (`787fb93d1cdcc8ab...`), 0/128
   differing episode files. Honest cross-scale figure is ~2.0x; the 2.11x
   above is the 40-episode sample and is left as-measured.
+
+- (rollout-repair round, 2026-08-24) **The pulled `13ce744` rollout producer was
+  repaired and its state contract rechecked against the pinned artifacts.** The
+  malformed CUDA block was removed; CUDA now uses the official LeRobot environment
+  processor once, while MLX translates `robot_state.eef` from xyzw to the checkpoint's
+  3-axis-angle dimensions and preserves both gripper qpos values. The NumPy patch
+  embedding contraction was corrected and optimized. Rollout telemetry now derives
+  per-object support-plane tops through the calibration helper, records success-source
+  labels, rejects disjoint manifests and missing policy digests, and preserves
+  R1-eligible calibration contacts. Standalone consumers reject manifest-less episodes
+  and scorer writes are atomic. Local compile, Ruff, ShellCheck, contract tests, all
+  script self-tests, and the synthetic smoke gate pass. The target LIBERO/MuJoCo
+  calibration and fleet run remain required; cached local LeRobot is not runnable due
+  an unrelated dataclass construction error.

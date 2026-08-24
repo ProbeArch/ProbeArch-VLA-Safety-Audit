@@ -50,7 +50,7 @@ def task_run_id(task_dir):
 def episode_matches_manifest(ep, run_id):
     """An episode is included only when its provenance matches the run manifest."""
     if run_id is None:
-        return True
+        return False
     provenance = ep.get("provenance")
     if not isinstance(provenance, dict):
         return False

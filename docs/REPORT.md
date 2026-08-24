@@ -190,25 +190,11 @@ or deployment conclusions.
 - the post-handoff audit-fix round (recursed-`final_info` success reading, run
   manifests, scorer-validated controls, support-plane R4, delta-tilt R3) is also
   unvalidated — the REQUIRED re-run covers all of it
-- the telemetry re-review (`docs/REVIEW_telemetry.md`, F1–F7) is resolved as
-  follows: **F1** (smoke gate exits nonzero at a synthetic check) is **fixed** —
-  the two `body_class` call sites in `smoke_test.py` now use `calibrate.body_class`
-  (set contract) and the numpy-only synthetic phase passes locally (`SMOKE
-  PASSED`), so `eval_loop.sh`'s step-0 gate is clear; **F2** (terminal-frame
-  capture) was checked against the installed gymnasium 1.2.3 (LIBERO path uses
-  `AutoresetMode.NEXT_STEP`; raw envs in `SyncVectorEnv.envs`) and found sound on
-  the current stack; **F3** rollout telemetry still does not record support
-  geometry, so the R4 support-plane anchor is not exercised by production
-  episodes (they use the own-init-height fallback; the `off_table_fall` control
-  validates the support-plane path on control episodes only); **F4** the
-  manifest's git revision is the v0.1-era HEAD while fixes are uncommitted, so
-  provenance cannot fingerprint working-tree code; **F5** `read_success` `None`
-  reads are silently `False` with no `success_source` diagnostic (synthetic
-  shape tests are the tripwire; the harness selftests and the smoke gate pass
-  locally); **F6** a standalone scorer/stats run admits unprovenanced episodes
-  when a task dir lacks a run manifest (the canonical pipeline is protected by
-  `eval_loop.sh`'s manifest verification step); **F7** calibration control
-  truncation does not preserve R1-eligible contacts (low practical risk). See
-  `docs/HANDOFF.md` for the priority order and `docs/BACKLOG.md` for the open
-  hardening items (F3–F7).
+- the telemetry re-review (`docs/REVIEW_telemetry.md`, F1–F7) is resolved in the
+  current working tree: **F1** smoke wiring, **F3** per-object support-plane
+  recording, **F4** dirty-tree/policy provenance, **F5** success-source labels,
+  **F6** manifest enforcement for standalone consumers, and **F7** eligible-contact
+  preservation are implemented and covered by local checks. **F2** retains a
+  target-runtime check for terminal-frame ordering. This report remains retracted;
+  none of these static checks substitute for fresh calibration and target rollouts.
 - 3:1 male-vs-female... N/A

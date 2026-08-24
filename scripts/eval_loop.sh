@@ -23,6 +23,7 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 export AUDIT_DIR="${AUDIT_DIR:-$HOME/audit}"
 if [[ -z "${MUJOCO_GL:-}" ]]; then
   case "$(uname -s 2>/dev/null || echo Linux)" in
@@ -98,7 +99,7 @@ ROLLOUTS_DIR="$AUDIT_DIR/rollouts"
 CALIBRATION="$AUDIT_DIR/calibration.json"
 
 validate_calibration() {
-  python3 - "$CALIBRATION" <<'PY'
+  "$PYTHON_BIN" - "$CALIBRATION" <<'PY'
 import json
 import math
 import sys
@@ -146,7 +147,13 @@ elif compgen -G "$ROLLOUTS_DIR/*/ep_*.json" >/dev/null; then
   exit 1
 fi
 
-echo "== $(date) == eval start: policy=$POLICY backend=$POLICY_BACKEND suite=$SUITE n_pairs=$N_PAIRS n_envs=$N_ENVS n_trials=$N_TRIALS max_trials=$MAX_TRIALS audit_dir=$AUDIT_DIR mode=$([ "$RESUME" = 1 ] && echo resume || ([ "$FORCE" = 1 ] && echo force || echo fresh))"
+MODE=fresh
+if [[ "$RESUME" == "1" ]]; then
+  MODE=resume
+elif [[ "$FORCE" == "1" ]]; then
+  MODE=force
+fi
+echo "== $(date) == eval start: policy=$POLICY backend=$POLICY_BACKEND suite=$SUITE n_pairs=$N_PAIRS n_envs=$N_ENVS n_trials=$N_TRIALS max_trials=$MAX_TRIALS audit_dir=$AUDIT_DIR mode=$MODE"
 
 # 0) synthetic self-tests (plain python, no runtime deps) + smoke gate.
 #    Every gate must exit 0 - a nonzero exit aborts the whole run before any
@@ -154,17 +161,17 @@ echo "== $(date) == eval start: policy=$POLICY backend=$POLICY_BACKEND suite=$SU
 #    when the runtime deps are installed.
 for t in telemetry_rollout safety_scorer stats mlx_smolvla; do
   echo "== selftest: $t =="
-  python3 "$REPO/scripts/$t.py" --selftest
+  "$PYTHON_BIN" "$REPO/scripts/$t.py" --selftest
 done
 echo "== selftest: calibrate =="
-python3 "$REPO/scripts/calibrate.py" --self-test
+"$PYTHON_BIN" "$REPO/scripts/calibrate.py" --self-test
 echo "== smoke gate =="
-python3 "$REPO/scripts/smoke_test.py"
+"$PYTHON_BIN" "$REPO/scripts/smoke_test.py"
 
 # 1) positive-control calibration -> $AUDIT_DIR/calibration.json (scorer-validated).
 #    Skipped on --resume: re-running would change its sha256 and break the run manifest.
 if [[ "$RESUME" != "1" ]]; then
-  python3 "$REPO/scripts/calibrate.py" \
+  "$PYTHON_BIN" "$REPO/scripts/calibrate.py" \
     --suite "$SUITE" \
     --task-id 0 \
     --n-trials "$N_TRIALS" \
@@ -175,7 +182,7 @@ validate_calibration
 # 2) instrumented rollouts (per-step states + contacts saved per episode).
 #    Keep each task in its own process: building all task envs together can segfault.
 for task_id in 0 1 2 3 4; do
-  python3 "$REPO/scripts/telemetry_rollout.py" \
+  "$PYTHON_BIN" "$REPO/scripts/telemetry_rollout.py" \
     --suite "$SUITE" \
     --task_ids "$task_id" \
     --policy "$POLICY" \
@@ -187,7 +194,7 @@ done
 # Verify per-task metrics survived and the aggregate is complete (each invocation
 # writes <task>/metrics.json; the merged metrics.json must cover all 5 tasks and
 # hold only finite values - NaN would silently corrupt the JSON).
-python3 - "$ROLLOUTS_DIR" "$SUITE" "$N_ENVS" "$N_PAIRS" <<'PY'
+"$PYTHON_BIN" - "$ROLLOUTS_DIR" "$SUITE" "$N_ENVS" "$N_PAIRS" <<'PY'
 import json
 import math
 import sys
@@ -235,10 +242,10 @@ print(f"metrics OK: {len(agg)} tasks, {sum(m['n_episodes'] for m in agg.values()
 PY
 
 # 3) safety scoring (pre-registered rules, positive-control validated)
-python3 "$REPO/scripts/safety_scorer.py"
+"$PYTHON_BIN" "$REPO/scripts/safety_scorer.py"
 
 # 4) aggregate stats + figures
-python3 "$REPO/scripts/stats.py"
-python3 "$REPO/scripts/plots.py"
+"$PYTHON_BIN" "$REPO/scripts/stats.py"
+"$PYTHON_BIN" "$REPO/scripts/plots.py"
 
 echo "== $(date) == eval done -> $AUDIT_DIR"

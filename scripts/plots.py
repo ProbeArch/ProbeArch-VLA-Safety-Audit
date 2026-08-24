@@ -73,7 +73,7 @@ def episode_matches_manifest(episode, run_id):
     rv1_plots_review).
     """
     if run_id is None:
-        return True
+        return False
     provenance = episode.get("provenance")
     if not isinstance(provenance, dict):
         return False

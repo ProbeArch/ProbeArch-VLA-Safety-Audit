@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 from collections import deque
 from pathlib import Path
 
@@ -173,7 +172,12 @@ class ArrayBackend:
             + (x.strides[2] * stride, x.strides[3] * stride, x.strides[2], x.strides[3]),
             writeable=False,
         )
-        y = np.einsum("bchwij,oijc->bohw", patches.transpose(0, 2, 3, 4, 5, 1), w.transpose(0, 2, 3, 1))
+        y = np.einsum(
+            "bhwijk,oijk->bohw",
+            patches.transpose(0, 2, 3, 4, 5, 1),
+            w.transpose(0, 2, 3, 1),
+            optimize=True,
+        )
         if bias is not None:
             y = y + np.asarray(bias)[None, :, None, None]
         return y
@@ -1002,6 +1006,24 @@ def load_stats(policy_dir):
     return load_safetensors(path)
 
 
+def validate_policy_stats(stats):
+    """Reject incomplete or malformed inference normalization statistics."""
+    required = {
+        "observation.state.mean": (8,),
+        "observation.state.std": (8,),
+        "action.mean": (7,),
+        "action.std": (7,),
+    }
+    for key, shape in required.items():
+        if key not in stats:
+            raise RuntimeError(f"policy normalizer is missing {key}")
+        value = np.asarray(stats[key], dtype=np.float32)
+        if value.shape != shape or not np.isfinite(value).all():
+            raise RuntimeError(f"policy normalizer {key} has invalid shape or values: {value.shape}")
+    if np.any(np.asarray(stats["observation.state.std"]) < 0) or np.any(np.asarray(stats["action.std"]) < 0):
+        raise RuntimeError("policy normalizer standard deviations must be non-negative")
+
+
 def load_config(policy_dir):
     path = Path(policy_dir) / "config.json"
     if not path.is_file():
@@ -1021,11 +1043,62 @@ def load_policy(policy_id=DEFAULT_POLICY, backend="auto", tokenizer=None, cache_
         n_action_steps=int(cfg.get("n_action_steps", 1)),
     )
     policy.stats = load_stats(root)
+    validate_policy_stats(policy.stats)
     policy.policy_id = policy_id
     policy.policy_dir = root
     policy.backend_name = xp.name
     policy.config = cfg
     return policy
+
+
+def _state_from_robot_state(state):
+    """Build the checkpoint's 8-D position, axis-angle, and gripper state."""
+    pos = _as_numpy(state["eef"]["pos"]).astype(np.float32, copy=False)
+    quat = _as_numpy(state["eef"]["quat"]).astype(np.float32, copy=False)
+    if pos.ndim == 1:
+        pos = pos[None, :]
+    if quat.ndim == 1:
+        quat = quat[None, :]
+    if pos.ndim != 2 or pos.shape[1] != 3:
+        raise ValueError(f"expected batched eef position with shape (B, 3), got {pos.shape}")
+    if quat.shape != (pos.shape[0], 4):
+        raise ValueError(f"expected batched xyzw quaternion with shape {(pos.shape[0], 4)}, got {quat.shape}")
+
+    gripper = state.get("gripper", state.get("gripper_open"))
+    if isinstance(gripper, dict):
+        gripper_values = gripper
+        gripper = gripper.get("qpos")
+        if gripper is None:
+            values = [
+                _as_numpy(value)
+                for key, value in sorted(gripper_values.items())
+                if "vel" not in key.lower()
+            ]
+            if not values:
+                raise ValueError("robot_state.gripper has no position values")
+            gripper = np.concatenate(values, axis=-1)
+    if gripper is None:
+        raise ValueError("robot_state has no gripper position")
+    gripper = _as_numpy(gripper).astype(np.float32, copy=False)
+    if gripper.ndim == 1:
+        gripper = gripper[None, :]
+    if gripper.ndim != 2 or gripper.shape[0] != pos.shape[0]:
+        raise ValueError(
+            f"expected batched gripper position with first dimension {pos.shape[0]}, got {gripper.shape}"
+        )
+
+    w = np.clip(quat[:, 3], -1.0, 1.0)
+    denominator = np.sqrt(np.maximum(1.0 - w * w, 0.0))
+    axis_angle = np.zeros((pos.shape[0], 3), dtype=np.float32)
+    nonzero = denominator > 1e-10
+    if np.any(nonzero):
+        angle = 2.0 * np.arccos(w[nonzero])
+        axis_angle[nonzero] = (
+            quat[nonzero, :3]
+            / denominator[nonzero, None]
+            * angle[:, None]
+        )
+    return np.concatenate([pos, axis_angle, gripper], axis=-1).astype(np.float32, copy=False)
 
 
 def observation_from_lerobot(obs):
@@ -1044,38 +1117,11 @@ def observation_from_lerobot(obs):
     if "observation.state" in obs:
         batch[OBS_STATE] = _as_numpy(obs["observation.state"])
     elif "observation.robot_state" in obs:
-        # smolvla_libero STATE feature is 8-dim: eef pos (3) + quat xyzw (4)
-        # + gripper openness (1, mean of the two finger qpos).
-        state = obs["observation.robot_state"]
-
-        def first_tensor(value):
-            if isinstance(value, dict):
-                return first_tensor(next(iter(value.values())))
-            return np.asarray(value)
-
-        def tensor_at(container, *path):
-            node = container
-            for key in path:
-                node = node[key]
-            return np.asarray(node)
-
-        batch_size = tensor_at(state, "eef", "pos").shape[0]
-        pos = np.asarray(state["eef"]["pos"], dtype=np.float32).reshape(batch_size, -1)
-        quat = np.asarray(state["eef"]["quat"], dtype=np.float32).reshape(batch_size, -1)
-        gripper = state.get("gripper", state.get("gripper_open"))
-        if isinstance(gripper, dict):
-            fingers = [np.asarray(gripper[k], dtype=np.float32).reshape(batch_size, -1) for k in sorted(gripper)]
-            grip_width = np.concatenate(fingers, axis=-1).mean(axis=-1, keepdims=True)
-        else:
-            grip_width = np.asarray(gripper, dtype=np.float32).reshape(batch_size, -1)[:, :1]
-        batch[OBS_STATE] = np.concatenate([pos, quat, grip_width], axis=-1).astype(np.float32)
+        batch[OBS_STATE] = _state_from_robot_state(obs["observation.robot_state"])
     elif "robot_state" in obs:
         state = obs["robot_state"]
-        if isinstance(state, dict):
-            batch[OBS_STATE] = np.concatenate(
-                [_as_numpy(state[k]).reshape(len(_as_numpy(state[k])), -1) for k in state],
-                axis=-1,
-            )
+        if isinstance(state, dict) and "eef" in state:
+            batch[OBS_STATE] = _state_from_robot_state(state)
         else:
             batch[OBS_STATE] = _as_numpy(state)
     if "task" in obs:
@@ -1317,6 +1363,33 @@ def run_selftest():
     policy.stats["action.std"] = np.full((7,), 2.0, np.float32)
     raw = np.ones((1, 7), dtype=np.float32)
     check(np.allclose(policy.unnormalize_action(raw), np.arange(7) + 2.0), "unnormalize failed")
+
+    translated = observation_from_lerobot(
+        {
+            "observation.robot_state": {
+                "eef": {
+                    "pos": np.array([[1.0, 2.0, 3.0]], dtype=np.float32),
+                    "quat": np.array([[0.3826834, 0.0, 0.0, 0.9238795]], dtype=np.float32),
+                },
+                "gripper": {
+                    "qpos": np.array([[0.2, 0.4]], dtype=np.float32),
+                    "qvel": np.array([[9.0, 9.0]], dtype=np.float32),
+                },
+            }
+        }
+    )[OBS_STATE]
+    check(
+        translated.shape == (1, 8)
+        and np.allclose(translated[0], [1.0, 2.0, 3.0, 0.7854, 0.0, 0.0, 0.2, 0.4], atol=1e-4),
+        f"observation state translation incorrect: {translated}",
+    )
+
+    conv_image = np.arange(3 * 32 * 32, dtype=np.float32).reshape(1, 3, 32, 32)
+    conv_weights = np.zeros((2, 3, 16, 16), dtype=np.float32)
+    conv_weights[0, 0, 0, 0] = 1.0
+    conv_weights[1, 2, 15, 15] = 2.0
+    conv_output = xp.conv2d(conv_image, conv_weights, None, stride=16)
+    check(conv_output.shape == (1, 2, 2, 2), f"numpy conv2d shape {conv_output.shape}")
 
     # Backend resolution: numpy always works; mlx optional.
     check(resolve_backend("numpy").name == "numpy", "numpy backend missing")
