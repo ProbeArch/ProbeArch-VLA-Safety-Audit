@@ -8,7 +8,7 @@
   (the last pre-run static item; nothing left on the static checklist)
 - [x] Fix the F1 smoke-gate blocker (re-review F1, `docs/REVIEW_telemetry.md`):
   the two `body_class` call sites in `smoke_test.py` now use `calibrate.body_class`
-  (set contract); `python3 scripts/smoke_test.py` → `SMOKE PASSED` locally
+  (set contract); `python3 scripts/_backend_map/shared/smoke_test.py` → `SMOKE PASSED` locally
   (numpy-only phase). Done in the final-fix round; live-phase checks still need
   the target machine.
 - [ ] Run the corrected validation pipeline (fresh `AUDIT_DIR` + re-derived

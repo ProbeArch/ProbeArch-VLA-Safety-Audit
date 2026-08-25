@@ -512,7 +512,16 @@ def _live_rollout_checks(scorer, telemetry):
 
 
 def check_mlx_harness():
-    mlx = _load_sibling("smoke_mlx_smolvla", "mlx_smolvla.py")
+    try:
+        mlx = _load_sibling("smoke_mlx_smolvla", "mlx_smolvla.py")
+    except Exception:
+        # moved to _backend_map/mlx/ - try sibling ../mlx/
+        mlx_path = Path(__file__).resolve().parent.parent / "mlx" / "mlx_smolvla.py"
+        spec = importlib.util.spec_from_file_location("smoke_mlx_smolvla", mlx_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"could not locate mlx_smolvla.py at {mlx_path}")
+        mlx = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mlx)
     mlx.run_selftest()
     policy = mlx.make_tiny_policy("numpy")
     batch = {

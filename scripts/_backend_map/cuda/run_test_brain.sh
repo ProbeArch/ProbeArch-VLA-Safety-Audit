@@ -7,7 +7,7 @@ export PATH="/home/dunli/miniconda3/envs/vla-audit/bin:$PATH"
 export MUJOCO_GL=egl
 export POLICY_BACKEND=cuda
 cd /mnt/d/ProbeArch-VLA-Safety-Audit
-timeout 600 bash scripts/eval_loop.sh libero_spatial 1 1 --force 2>&1 | tee /tmp/test-brain.log
+timeout 600 bash scripts/_backend_map/shared/eval_loop.sh libero_spatial 1 1 --force 2>&1 | tee /tmp/test-brain.log
 echo ---done
 cat /tmp/test-brain/stats.json 2>&1 | head -n 80
 cat /tmp/test-brain/safety_summary.json 2>&1 | head -n 80

@@ -4,7 +4,7 @@
 
 ## Summary
 
-`scripts/safety_scorer.py` scoring path rewritten from small-array numpy to scalar `math`. Episode-initial poses hoisted into a pre-computed cache. **Result: 2.00x median scorer wall time**, byte-identical output on protocol-sized synthetic telemetry.
+`scripts/_backend_map/shared/safety_scorer.py` scoring path rewritten from small-array numpy to scalar `math`. Episode-initial poses hoisted into a pre-computed cache. **Result: 2.00x median scorer wall time**, byte-identical output on protocol-sized synthetic telemetry.
 
 ## Motivation
 

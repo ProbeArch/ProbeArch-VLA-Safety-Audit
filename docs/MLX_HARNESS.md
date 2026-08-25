@@ -6,11 +6,11 @@ Optional Apple Silicon policy backend for ProbeArch. It swaps only `select_actio
 
 Entry points:
 
-- `POLICY_BACKEND=mlx scripts/eval_loop.sh …`
-- `python3 scripts/telemetry_rollout.py --device mlx …`
-- `python3 scripts/mlx_smolvla.py --selftest|--probe`
+- `POLICY_BACKEND=mlx scripts/_backend_map/shared/eval_loop.sh …`
+- `python3 scripts/_backend_map/shared/telemetry_rollout.py --device mlx …`
+- `python3 scripts/_backend_map/mlx/mlx_smolvla.py --selftest|--probe`
 
-Runtime: [`scripts/mlx_smolvla.py`](../scripts/mlx_smolvla.py). Manifests record `policy_backend` and, for MLX, `policy_runtime: probearch-mlx-smolvla`.
+Runtime: [`scripts/_backend_map/mlx/mlx_smolvla.py`](../scripts/_backend_map/mlx/mlx_smolvla.py). Manifests record `policy_backend` and, for MLX, `policy_runtime: probearch-mlx-smolvla`.
 
 ## Status on this Mac (2026-08-13)
 
@@ -18,9 +18,9 @@ Runtime: [`scripts/mlx_smolvla.py`](../scripts/mlx_smolvla.py). Manifests record
 
 - `mlx` 0.32.0 + `mlx-metal` (Metal `Device(gpu, 0)`)
 - `safetensors` 0.7.0, `transformers` 5.5.4, `tokenizers` 0.22.2
-- `scripts/mlx_smolvla.py --selftest`
+- `scripts/_backend_map/mlx/mlx_smolvla.py --selftest`
 - telemetry / scorer / stats / calibrate self-tests
-- `scripts/smoke_test.py` synthetic phase (`SMOKE PASSED`)
+- `scripts/_backend_map/shared/smoke_test.py` synthetic phase (`SMOKE PASSED`)
 
 **Not run**
 
@@ -71,12 +71,12 @@ export MUJOCO_GL=glfw             # macOS; use egl on the WSL box
 Re-run after any harness edit. Already green on this Mac.
 
 ```bash
-python3 scripts/mlx_smolvla.py --selftest
-python3 scripts/telemetry_rollout.py --selftest
-python3 scripts/safety_scorer.py --selftest
-python3 scripts/stats.py --selftest
-python3 scripts/calibrate.py --self-test
-python3 scripts/smoke_test.py
+python3 scripts/_backend_map/mlx/mlx_smolvla.py --selftest
+python3 scripts/_backend_map/shared/telemetry_rollout.py --selftest
+python3 scripts/_backend_map/shared/safety_scorer.py --selftest
+python3 scripts/_backend_map/shared/stats.py --selftest
+python3 scripts/_backend_map/shared/calibrate.py --self-test
+python3 scripts/_backend_map/shared/smoke_test.py
 ```
 
 Pass: each exits 0.
@@ -86,7 +86,7 @@ Smoke today prints `live rollout skipped` until `mujoco` and `lerobot` exist. Af
 ### T2 — MLX weight load (no env)
 
 ```bash
-python3 scripts/mlx_smolvla.py --probe --backend mlx
+python3 scripts/_backend_map/mlx/mlx_smolvla.py --probe --backend mlx
 ```
 
 Pass: JSON with `"backend": "mlx"`, `"action_shape": [1, 7]`, `"finite": true`.
@@ -100,17 +100,17 @@ This is the actual harness test.
 ```bash
 export AUDIT_DIR=~/audit-mlx
 rm -rf "$AUDIT_DIR"
-POLICY_BACKEND=mlx scripts/eval_loop.sh libero_spatial 1 1
+POLICY_BACKEND=mlx scripts/_backend_map/shared/eval_loop.sh libero_spatial 1 1
 ```
 
 If `eval_loop.sh` dies in smoke's CUDA policy gate, run stages by hand:
 
 ```bash
 export AUDIT_DIR=~/audit-mlx
-python3 scripts/calibrate.py --suite libero_spatial --task-id 0
-python3 scripts/telemetry_rollout.py \
+python3 scripts/_backend_map/shared/calibrate.py --suite libero_spatial --task-id 0
+python3 scripts/_backend_map/shared/telemetry_rollout.py \
   --device mlx --suite libero_spatial --task_ids 0 --n_envs 1 --n_pairs 1
-python3 scripts/safety_scorer.py && python3 scripts/stats.py
+python3 scripts/_backend_map/shared/safety_scorer.py && python3 scripts/_backend_map/shared/stats.py
 ```
 
 Pass:
@@ -130,7 +130,7 @@ If they diverge, keep MLX labeled experimental. Do not mix rates.
 
 ```bash
 export AUDIT_DIR=~/audit-mlx
-POLICY_BACKEND=mlx scripts/eval_loop.sh libero_spatial 8 4
+POLICY_BACKEND=mlx scripts/_backend_map/shared/eval_loop.sh libero_spatial 8 4
 ```
 
 ## Non-goals

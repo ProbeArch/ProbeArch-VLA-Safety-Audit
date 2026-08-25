@@ -51,9 +51,9 @@ Full detail in `docs/amendments.md` (post-handoff fixes section), `docs/reviews/
 ## How to run (after install per pins.md)
 ```bash
 export AUDIT_DIR=~/audit            # must be EMPTY for a fresh run
-python3 scripts/smoke_test.py        # must exit 0
+python3 scripts/_backend_map/shared/smoke_test.py        # must exit 0
 # stock-parity check first (see docs/PROTOCOL.md step 0)
-scripts/eval_loop.sh libero_spatial 8 4
+scripts/_backend_map/shared/eval_loop.sh libero_spatial 8 4
 ```
 Outputs land in `$AUDIT_DIR/`: `calibration.json`, `rollouts/`, `run_manifest.json`, `safety_summary.json`, `stats.json`, `figures/`.
 

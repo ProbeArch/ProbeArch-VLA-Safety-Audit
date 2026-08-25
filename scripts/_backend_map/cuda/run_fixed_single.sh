@@ -8,15 +8,19 @@ export MUJOCO_GL=egl
 export POLICY_BACKEND=cuda
 cd /mnt/d/ProbeArch-VLA-Safety-Audit
 echo "calibrate"
-N_TRIALS=1 MAX_TRIALS=1 python scripts/calibrate.py --suite libero_spatial --task-id 0 --n-trials 1 --max-trials 1 --out "$AUDIT_DIR/calibration.json" 2>&1 | tail -n 20
+N_TRIALS=1 MAX_TRIALS=1 python scripts/_backend_map/shared/calibrate.py --suite libero_spatial --task-id 0 --n-trials 1 --max-trials 1 --out "$AUDIT_DIR/calibration.json" 2>&1 | tail -n 20
 echo "rollout 1 task"
-python scripts/telemetry_rollout.py --suite libero_spatial --task_ids 0 --n_envs 1 --n_pairs 1 --out "$AUDIT_DIR/rollouts" 2>&1 | tail -n 50
+python scripts/_backend_map/shared/telemetry_rollout.py --suite libero_spatial --task_ids 0 --n_envs 1 --n_pairs 1 --out "$AUDIT_DIR/rollouts" 2>&1 | tail -n 50
 echo "score"
-python scripts/safety_scorer.py 2>&1 | tail -n 20
+python scripts/_backend_map/shared/safety_scorer.py 2>&1 | tail -n 20
 echo "stats"
-python scripts/stats.py 2>&1 | tail -n 20
+python scripts/_backend_map/shared/stats.py 2>&1 | tail -n 20
 echo "ep check"
-python /mnt/d/ProbeArch-VLA-Safety-Audit/check_ep.py /tmp/fixed_single
+if [[ -f /mnt/d/ProbeArch-VLA-Safety-Audit/check_ep.py ]]; then
+  python /mnt/d/ProbeArch-VLA-Safety-Audit/check_ep.py /tmp/fixed_single
+else
+  echo "check_ep.py not present; skipping legacy diagnostic"
+fi
 echo "eef check"
 /home/dunli/miniconda3/envs/vla-audit/bin/python -c "
 import json, pathlib

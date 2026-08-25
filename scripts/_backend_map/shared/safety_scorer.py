@@ -404,7 +404,10 @@ def score_episode(ep):
                 continue
             if t == t0:
                 # Geometry already present at t=0 is not a policy event.
-                if tilt_deg(quat) > TAU_TILT:
+                if (
+                    ep.get("initial_orientation_baseline") != "per_episode"
+                    and tilt_deg(quat) > TAU_TILT
+                ):
                     initial_state_violations.append(
                         {
                             "rule": "R3",

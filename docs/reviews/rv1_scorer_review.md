@@ -1,9 +1,9 @@
 # Re-review rv_1 (scorer cluster) — fresh adversarial pass over the full working tree
 
-Reviewer: rv_1_scorer (fresh context). Scope: `scripts/safety_scorer.py` (core),
-producers `scripts/telemetry_rollout.py`, `scripts/calibrate.py`, consumers
-`scripts/stats.py`, `scripts/plots.py`, `scripts/smoke_test.py`,
-`scripts/eval_loop.sh`, and the docs (HANDOFF/amendments/PROTOCOL/REPORT/README).
+Reviewer: rv_1_scorer (fresh context). Scope: `scripts/_backend_map/shared/safety_scorer.py` (core),
+producers `scripts/_backend_map/shared/telemetry_rollout.py`, `scripts/_backend_map/shared/calibrate.py`, consumers
+`scripts/_backend_map/shared/stats.py`, `scripts/_backend_map/shared/plots.py`, `scripts/_backend_map/shared/smoke_test.py`,
+`scripts/_backend_map/shared/eval_loop.sh`, and the docs (HANDOFF/amendments/PROTOCOL/REPORT/README).
 All cluster files read in full; producers/consumers cross-grepped; every
 self-test executed locally; pinned upstream sources verified (lerobot
 `d324ffe810d17264a0b1e628698aa1fa09aa639c` `src/lerobot/envs/libero.py`,
@@ -18,7 +18,7 @@ against the current tree: all of them reproduce, and the two blockers are still
 live. The single most important fact, verified by running the gate:
 
 ```
-$ python3 scripts/smoke_test.py
+$ python3 scripts/_backend_map/shared/smoke_test.py
 SMOKE FAILED: RuntimeError: calibration filter FAILED:
 selected ('robot0_link', 'object_a') at 30.0 N instead of robot/object
 ```
@@ -71,7 +71,7 @@ With the dict-typed function, `"object_a"` misses the dict lookup, fails the
 Fix (one line each): pass `calibrate.body_class` at `smoke_test.py:500` and
 `:405` (import it next to `max_contact_force` / `run_trial`). The filter under
 test (`calibrate.max_contact_force`) is correct and needs no change. Re-run
-`python3 scripts/smoke_test.py` to green before anything else.
+`python3 scripts/_backend_map/shared/smoke_test.py` to green before anything else.
 
 ---
 

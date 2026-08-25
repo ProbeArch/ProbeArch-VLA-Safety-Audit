@@ -19,9 +19,12 @@ Usage:
 import argparse
 import hashlib
 import importlib.util
+import importlib.metadata
 import json
 import math
 import os
+import platform
+import subprocess
 import sys
 import time
 import uuid
@@ -40,7 +43,27 @@ MAX_R1_CONTACTS = 512
 
 # Per-episode init-state id cycles 0..31 (matching the PROTOCOL contract).
 INIT_STATE_CYCLE = 32
-SPATIAL_TASK_IDS = tuple(range(5))
+SUPPORTED_LIBERO_SUITES = (
+    "libero_spatial",
+    "libero_object",
+    "libero_goal",
+    "libero_10",
+    "libero_90",
+)
+
+
+def suite_task_ids(suite: str) -> tuple[int, ...]:
+    """Return task IDs from the installed LIBERO benchmark registry."""
+    try:
+        from libero.libero.benchmark import get_benchmark
+
+        benchmark = get_benchmark(suite)()
+    except Exception as exc:
+        raise ValueError(
+            f"unsupported or unavailable LIBERO suite {suite!r}; "
+            f"supported suites are {list(SUPPORTED_LIBERO_SUITES)}"
+        ) from exc
+    return tuple(range(int(benchmark.n_tasks)))
 
 
 def _indexed_bool(value, k, mask=None):
@@ -626,22 +649,42 @@ def main():
     )
     ap.add_argument("--device", default="cuda", choices=POLICY_BACKENDS,
                     help="policy backend: cuda (LeRobot/torch, default) or mlx (Apple Silicon)")
-    ap.add_argument("--resolution", type=int, default=256)
+    ap.add_argument("--resolution", type=int, default=360)
     ap.add_argument("--max_steps", type=int, default=None)
     ap.add_argument("--n_envs", type=int, default=4)
     ap.add_argument("--n_pairs", type=int, default=10)
+    ap.add_argument(
+        "--n_action_steps",
+        type=int,
+        default=1,
+        help="policy action horizon; baseline is 1",
+    )
+    ap.add_argument(
+        "--episode_offset",
+        type=int,
+        default=0,
+        help="global episode ID offset for deterministic init-state/reset-seed sampling",
+    )
     ap.add_argument(
         "--selftest",
         action="store_true",
         help="run synthetic read_success unit tests (no gymnasium/lerobot) and exit",
     )
     args = ap.parse_args()
+    if args.episode_offset < 0:
+        ap.error("--episode_offset must be non-negative")
+    if args.n_action_steps < 1:
+        ap.error("--n_action_steps must be positive")
     if args.selftest:
         sys.exit(run_selftest())
     if not args.task_ids:
         ap.error("--task_ids is required (or pass --selftest)")
-    if any(task_id not in SPATIAL_TASK_IDS for task_id in args.task_ids):
-        ap.error(f"task_ids must be within {list(SPATIAL_TASK_IDS)}")
+    try:
+        valid_task_ids = suite_task_ids(args.suite)
+    except ValueError as exc:
+        ap.error(str(exc))
+    if any(task_id not in valid_task_ids for task_id in args.task_ids):
+        ap.error(f"task_ids for {args.suite} must be within {list(valid_task_ids)}")
 
     from lerobot.envs.configs import LiberoEnv
     from lerobot.envs.factory import make_env, make_env_pre_post_processors
@@ -650,10 +693,26 @@ def main():
 
     set_seed(1000)
     use_mlx = args.device == "mlx"
+    policy_runtime_config = {}
     if use_mlx:
-        from mlx_smolvla import HARNESS_NAME as MLX_HARNESS_NAME
-        from mlx_smolvla import load_policy as load_mlx_policy
-        from mlx_smolvla import observation_from_lerobot
+        try:
+            from mlx_smolvla import HARNESS_NAME as MLX_HARNESS_NAME
+            from mlx_smolvla import load_policy as load_mlx_policy
+            from mlx_smolvla import observation_from_lerobot
+        except ImportError:
+            # moved to scripts/_backend_map/mlx/ - keep root clean; handle both old and new locations
+            import importlib.util as _ilu
+            _candidate = Path(__file__).with_name("_backend_map") / "mlx" / "mlx_smolvla.py"
+            if _candidate.is_file():
+                _mlx_path = _candidate
+            else:
+                _mlx_path = Path(__file__).resolve().parent.parent / "mlx" / "mlx_smolvla.py"
+            _spec = _ilu.spec_from_file_location("mlx_smolvla", _mlx_path)
+            _mod = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(_mod)  # type: ignore
+            MLX_HARNESS_NAME = _mod.HARNESS_NAME
+            load_mlx_policy = _mod.load_policy
+            observation_from_lerobot = _mod.observation_from_lerobot
 
         torch = None
         policy_cfg = None
@@ -676,12 +735,26 @@ def main():
     ) / "calibration.json"
     if not calibration_path.is_file():
         raise RuntimeError(f"calibration file is required: {calibration_path}")
+    with calibration_path.open() as calibration_file:
+        calibration_metadata = json.load(calibration_file)
+    calibration_suite = calibration_metadata.get("calibration_suite")
+    if calibration_suite != args.suite:
+        raise RuntimeError(
+            f"calibration suite mismatch: requested {args.suite!r}, "
+            f"but calibration was generated for {calibration_suite!r}; "
+            "run calibrate.py for this suite before rollout"
+        )
     env_cfg = LiberoEnv(
         task=args.suite,
         task_ids=list(args.task_ids),
         observation_height=args.resolution,
         observation_width=args.resolution,
+        control_mode="relative",
     )
+    # Match stock LeRobot evaluation order: construct the environments before
+    # constructing the policy. SmolVLA action sampling is stochastic, so
+    # changing initialization order can change the RNG stream and trajectory.
+    envs = make_env(env_cfg, n_envs=args.n_envs, use_async_envs=False)
     if use_mlx:
         policy = load_mlx_policy(args.policy, backend="mlx")
         print(
@@ -690,8 +763,48 @@ def main():
         )
     else:
         policy_cfg = PreTrainedConfig.from_pretrained(args.policy)
+        # PreTrainedConfig.from_pretrained() loads the configuration schema but
+        # does not necessarily retain the source identifier used by
+        # make_policy(). Set it explicitly or LeRobot will instantiate a random
+        # policy from scratch while the manifest still records the checkpoint
+        # hash, producing a silently invalid audit.
+        policy_cfg.pretrained_path = args.policy
+        # Follow the reproducible evaluation setting while keeping the local
+        # Python/LeRobot/MuJoCo pins documented in pins.md.  These overrides
+        # are audit-critical: silently falling back to the checkpoint default
+        # (notably num_steps=10) can materially change success rate.
+        sub = getattr(policy_cfg, "policy", policy_cfg)
+        requested_policy_config = {
+            "n_action_steps": args.n_action_steps,
+            "num_steps": 1,
+            "use_amp": False,
+        }
+        missing_policy_fields = []
+        for key, value in requested_policy_config.items():
+            if hasattr(sub, key):
+                setattr(sub, key, value)
+            elif hasattr(policy_cfg, key):
+                setattr(policy_cfg, key, value)
+            else:
+                missing_policy_fields.append(key)
+        if missing_policy_fields:
+            raise RuntimeError(
+                "policy configuration does not expose required evaluation fields: "
+                + ", ".join(missing_policy_fields)
+            )
         policy = make_policy(cfg=policy_cfg, env_cfg=env_cfg, rename_map={})
         policy.eval()
+        for key, expected in requested_policy_config.items():
+            actual = getattr(policy.config, key, None)
+            if actual != expected:
+                raise RuntimeError(
+                    f"policy override did not take effect for {key}: "
+                    f"expected {expected!r}, got {actual!r}"
+                )
+        policy_runtime_config = {
+            key: getattr(policy.config, key) for key in requested_policy_config
+        }
+        print(f"policy runtime config: {policy_runtime_config}", flush=True)
         try:
             n_params = sum(p.numel() for p in policy.parameters())
             print(
@@ -716,6 +829,41 @@ def main():
     policy_digest = policy_cache_sha256(args.policy)
     if policy_digest is None:
         raise RuntimeError(f"could not establish a policy digest for {args.policy!r}")
+    lerobot_git_revision = None
+    try:
+        import lerobot
+
+        lerobot_root = Path(lerobot.__file__).resolve().parents[2]
+        revision = subprocess.run(
+            ["git", "-C", str(lerobot_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        lerobot_git_revision = revision.stdout.strip()
+    except Exception:
+        pass
+    runtime_provenance = {
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "mujoco": importlib.metadata.version("mujoco"),
+        "gymnasium": importlib.metadata.version("gymnasium"),
+        "lerobot": importlib.metadata.version("lerobot"),
+        "lerobot_git_revision": lerobot_git_revision,
+        "mujoco_gl": os.environ.get("MUJOCO_GL"),
+        "policy_runtime_config": policy_runtime_config,
+    }
+    if not use_mlx:
+        runtime_provenance.update(
+            {
+                "torch": torch.__version__,
+                "torch_cuda": torch.version.cuda,
+                "cuda_available": bool(torch.cuda.is_available()),
+                "cuda_device": torch.cuda.get_device_name(0)
+                if torch.cuda.is_available()
+                else None,
+            }
+        )
     root_expected = {
         "harness_schema_version": HARNESS_SCHEMA_VERSION,
         "git_revision": git_revision(),
@@ -723,12 +871,13 @@ def main():
         "policy_sha256": policy_digest,
         "policy_backend": args.device,
         "suite": args.suite,
-        "task_ids": list(SPATIAL_TASK_IDS),
+        "task_ids": list(valid_task_ids),
         "resolution": [args.resolution, args.resolution],
         "max_steps_requested": args.max_steps,
         "n_envs": args.n_envs,
         "n_pairs": args.n_pairs,
         "calibration_sha256": file_sha256(calibration_path),
+        "runtime": runtime_provenance,
     }
     if use_mlx:
         root_expected["policy_runtime"] = MLX_HARNESS_NAME
@@ -737,7 +886,6 @@ def main():
         out_dir / "run_manifest.json", root_expected, legacy_artifacts
     )
 
-    envs = make_env(env_cfg, n_envs=args.n_envs, use_async_envs=False)
     try:
         for task_id in args.task_ids:
             key = f"{args.suite}_{task_id}"
@@ -780,10 +928,13 @@ def main():
             episode_seconds = []
             executed_episodes = 0
             for pair in range(args.n_pairs):
-                episode_paths = [task_out / f"ep_{pair * N + k:03d}.json" for k in range(N)]
+                episode_paths = [
+                    task_out / f"ep_{args.episode_offset + pair * N + k:03d}.json"
+                    for k in range(N)
+                ]
                 reusable = []
                 for k, path in enumerate(episode_paths):
-                    ep = pair * N + k
+                    ep = args.episode_offset + pair * N + k
                     reusable.append(
                         load_reusable_episode(
                             path,
@@ -809,14 +960,23 @@ def main():
                 # gymnasium NEXT_STEP autoresets at the next vec.step, both
                 # advancing the implicit counter; re-pinning here makes the id
                 # used immune to those internal advances.
-                init_ids = [(pair * N + k) % INIT_STATE_CYCLE for k in range(N)]
+                init_ids = [
+                    (args.episode_offset + pair * N + k) % INIT_STATE_CYCLE
+                    for k in range(N)
+                ]
+                # Match stock LeRobot evaluation: seed each reset with the
+                # same deterministic per-episode schedule. Pinning the LIBERO
+                # snapshot alone does not pin all environment randomness.
+                reset_seeds = [
+                    1000 + args.episode_offset + pair * N + k for k in range(N)
+                ]
                 for k, env in enumerate(vec.envs):
                     # Internal and vector autoresets may advance this counter, but
                     # every audited reset is explicitly pinned to its episode ID.
                     env.init_state_id = init_ids[k]
                 policy.reset()
                 pair_t0 = time.time()
-                obs, _ = vec.reset()
+                obs, _ = vec.reset(seed=reset_seeds)
                 episode_support_planes = [
                     get_support_planes(vec.envs[k]._env.sim, table) for k in range(N)
                 ]
@@ -905,6 +1065,7 @@ def main():
                         "max_steps": max_steps,
                         "rollout_seconds": pair_seconds_per_episode,
                         "body_classes": {name: cls for cls, name in table.values()},
+                        "initial_orientation_baseline": "per_episode",
                         "steps": ep_steps[k],
                     }
                     support_plane_z = episode_support_z[k]

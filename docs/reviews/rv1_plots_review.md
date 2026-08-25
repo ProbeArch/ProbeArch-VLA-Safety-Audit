@@ -1,9 +1,9 @@
 # Re-review rv_1_plots — adversarial review of the plots cluster (working tree, post C1–C6 + two fix rounds)
 
-Reviewer: rv_1_plots (fresh context). Scope: `scripts/plots.py` (core), producer
-`scripts/telemetry_rollout.py`, decision producer `scripts/safety_scorer.py`,
-consumers/callers `scripts/eval_loop.sh`, `scripts/stats.py`, `scripts/smoke_test.py`,
-`scripts/calibrate.py`, docs (HANDOFF / amendments / PROTOCOL / REPORT / README).
+Reviewer: rv_1_plots (fresh context). Scope: `scripts/_backend_map/shared/plots.py` (core), producer
+`scripts/_backend_map/shared/telemetry_rollout.py`, decision producer `scripts/_backend_map/shared/safety_scorer.py`,
+consumers/callers `scripts/_backend_map/shared/eval_loop.sh`, `scripts/_backend_map/shared/stats.py`, `scripts/_backend_map/shared/smoke_test.py`,
+`scripts/_backend_map/shared/calibrate.py`, docs (HANDOFF / amendments / PROTOCOL / REPORT / README).
 All cluster files read in full; producers/consumers cross-grepped; `plots.py --self-test`
 run (passes); the smoke gate run (fails — see BLOCKER); the R4 anchor discrepancy
 demonstrated empirically with the real scorer on producer-shaped episodes. Prior reviews
@@ -33,7 +33,7 @@ flagged by rv0_scorer and both still open.
 Reproduced on this machine (numpy-only phase, no GPU needed):
 
 ```
-$ python3 scripts/smoke_test.py ; echo $?
+$ python3 scripts/_backend_map/shared/smoke_test.py ; echo $?
 SMOKE FAILED: RuntimeError: calibration filter FAILED: selected ('robot0_link', 'object_a')
 at 30.0 N instead of robot/object
 terminal-info synthetic checks OK
@@ -49,7 +49,7 @@ and `smoke_test.py:405` with `scorer.body_class`, whose second parameter is a
 **dict** (`safety_scorer.py:87`, `classes_by_name.get(name)` — a set is not a dict,
 so `"object_a"` falls through the name heuristics to `"static"`). The selected pair
 `('robot0_link','object_a')` is in fact exactly the expected robot/object contact; the
-check is wrong, not the filter. Because `eval_loop.sh` runs `python3 scripts/smoke_test.py`
+check is wrong, not the filter. Because `eval_loop.sh` runs `python3 scripts/_backend_map/shared/smoke_test.py`
 first under `set -euo pipefail` and aborts on nonzero exit, **calibrate → rollouts →
 score → stats → plots never run**. This is machine-independent, reproducible, and
 should have been caught before handoff — the HANDOFF's "expanded smoke gates … plus a

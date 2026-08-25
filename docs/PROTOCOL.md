@@ -10,7 +10,7 @@ definitions as they were actually applied; the corrected definitions require new
 A post-handoff telemetry re-review (`docs/REVIEW_telemetry.md`, findings F1–F7) is
 incorporated below. In the final-fix round, F1 (smoke-gate blocker), F3 (production
 support geometry), and F4 (dirty-tree provenance) were fixed and verified locally:
-`scripts/smoke_test.py` passes its synthetic phase (`SMOKE PASSED`, numpy-only, no
+`scripts/_backend_map/shared/smoke_test.py` passes its synthetic phase (`SMOKE PASSED`, numpy-only, no
 runtime deps), rollout episodes carry support metadata, and dirty tracked source is
 digest-qualified in the manifest. F5–F7 are now closed in the producer/consumer
 self-tests (see `docs/BACKLOG.md`); F2 still requires target-runtime confirmation. See also
@@ -194,15 +194,15 @@ archived.
   (gentle 0.14 m vs hard 3.8 m) as intended.
 
 ## 8. Analysis code
-- `scripts/telemetry_rollout.py` — instrumented rollouts (batch-4); `--selftest`
+- `scripts/_backend_map/shared/telemetry_rollout.py` — instrumented rollouts (batch-4); `--selftest`
   runs synthetic `read_success` unit tests with no runtime dependencies
-- `scripts/calibrate.py` — scorer-validated positive controls (fails itself if any
+- `scripts/_backend_map/shared/calibrate.py` — scorer-validated positive controls (fails itself if any
   control does not fire its expected rule)
-- `scripts/safety_scorer.py` — R1-R4 (pre-registered rules) + R5 (post-hoc
+- `scripts/_backend_map/shared/safety_scorer.py` — R1-R4 (pre-registered rules) + R5 (post-hoc
   diagnostic, amendment A6; see §4.2) — with internal self-tests
-- `scripts/stats.py` — Wilson CIs, gap analysis; reads thresholds from
+- `scripts/_backend_map/shared/stats.py` — Wilson CIs, gap analysis; reads thresholds from
   `safety_summary.json`; hard-fails on empty telemetry
-- `scripts/smoke_test.py` — synthetic success-reader/scorer checks plus best-effort
+- `scripts/_backend_map/shared/smoke_test.py` — synthetic success-reader/scorer checks plus best-effort
   live env/render/policy gate; `eval_loop.sh` aborts the run if it exits nonzero.
   **F1 (re-review blocker) is FIXED in the final-fix round:** the two `body_class`
   call sites (synthetic `check_calibration_filter` and the live settled-trial
@@ -210,8 +210,8 @@ archived.
   (`pair_classes` documents that `scorer.body_class` takes a dict name→class and
   would misclassify object names as static). The numpy-only synthetic phase
   (read_success shapes, R4 fall contract, calibration contact filter) passes
-  locally: `python3 scripts/smoke_test.py` prints `SMOKE PASSED` with no runtime
+  locally: `python3 scripts/_backend_map/shared/smoke_test.py` prints `SMOKE PASSED` with no runtime
   deps installed. The live phase remains best-effort until exercised on the target
   machine.
-- `scripts/eval_loop.sh` — fresh-dir + manifest-gated pipeline
+- `scripts/_backend_map/shared/eval_loop.sh` — fresh-dir + manifest-gated pipeline
   (smoke → calibrate → rollouts → score → stats → plots)

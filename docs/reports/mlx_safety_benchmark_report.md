@@ -43,7 +43,7 @@ Environment lives in `.venv-audit/`. Render backend: `MUJOCO_GL=glfw`. A pre-see
 
 All changes are confined to `scripts/`. Five were portability defects that would bite any fresh install; one set was control-magnitude retuning forced by differences in the physics stack's response.
 
-### 2.1 `scripts/calibrate.py`
+### 2.1 `scripts/_backend_map/shared/calibrate.py`
 
 **(a) Impossible settle criterion.** After the poke stimulus, the bowl comes to rest leaning on the ramekin with a persistent ~0.031 N object-object contact force. The old settle gate required R1-eligible force ≤ 0.01 N *and* near-zero velocity — physically unreachable once that resting contact exists. The scene was kinetically settled (max qvel ≈ 0.0014) but the gate demanded zero force forever.
 
@@ -55,18 +55,18 @@ All changes are confined to `scripts/`. Five were portability defects that would
 
 **(c) Tap couldn't reach the target.** The default 0.1-magnitude Cartesian nudge produced zero contact over the full trial window (end-effector starts 0.378 m from the bowl). Raised to `TAP_ACTION_MAGNITUDE = 0.5`, yielding a 0.031 N baseline → τ1 = 0.1 N after the 2× rounding rule.
 
-### 2.2 `scripts/mlx_smolvla.py`
+### 2.2 `scripts/_backend_map/mlx/mlx_smolvla.py`
 
 The observation translator expected flat `observation.state` keys that this lerobot never produces. Actual structure is a nested dict (`robot_state.eef.{pos,quat,mat}`, `.gripper.*`, `.joints.*`). Rewrote assembly to match the checkpoint's declared 8-dim STATE feature and pinned `LiberoProcessorStep`: eef pos (3) + xyzw quaternion converted to axis-angle (3) + gripper qpos (2).
 
-### 2.3 `scripts/telemetry_rollout.py`
+### 2.3 `scripts/_backend_map/shared/telemetry_rollout.py`
 
 Two bugs in contact-force measurement:
 
 - `mujoco.mj_contactForce()` requires raw pybind structs, but robosuite hands out wrapper objects. Added `_model`/`_data` unwrapping.
 - Wrench buffer shape corrected to `(6,1)` per the binding annotation, and the function had lost its return statement — restored.
 
-*(Note: `scripts/safety_scorer.py` also carries uncommitted local changes — scalar tilt math and class-map handling — which predate this session's work and are part of the same branch.)*
+*(Note: `scripts/_backend_map/shared/safety_scorer.py` also carries uncommitted local changes — scalar tilt math and class-map handling — which predate this session's work and are part of the same branch.)*
 
 ## 3. Calibration Result
 
@@ -160,16 +160,16 @@ source .venv-audit/bin/activate
 export MUJOCO_GL=glfw AUDIT_DIR=/tmp/func-safety
 
 # 1. calibrate (thresholds + control validation)
-python3 scripts/calibrate.py --suite libero_spatial --task-id 0 \
+python3 scripts/_backend_map/shared/calibrate.py --suite libero_spatial --task-id 0 \
   --n-trials 1 --max-trials 1 --out $AUDIT_DIR/calibration.json
 
 # 2. rollout (2 episodes, safety telemetry)
-python3 scripts/telemetry_rollout.py --device mlx --suite libero_spatial \
+python3 scripts/_backend_map/shared/telemetry_rollout.py --device mlx --suite libero_spatial \
   --task_ids 0 --n_envs 1 --n_pairs 2 --out $AUDIT_DI
 R/rollouts
 
 # 3. score + aggregate
-python3 scripts/safety_scorer.py && python3 scripts/stats.py
+python3 scripts/_backend_map/shared/safety_scorer.py && python3 scripts/_backend_map/shared/stats.py
 ```
 
 Artifacts on disk: `/tmp/func-safety/{calibration,safety_summary,stats}.json`, `/tmp/func-safety/rollouts/libero_spatial_0/{ep_000,ep_001}.json` plus manifests. An earlier single-episode smoke run lives under `/tmp/func-mlx/` with identical gates passing.
