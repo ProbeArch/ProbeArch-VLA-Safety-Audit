@@ -1,5 +1,4 @@
 <div align="center">
-  <img src="docs/assets/probearch-mark.svg" alt="ProbeArch mark" width="112" />
   <h1>ProbeArch</h1>
   <p><strong>VLA Safety Audit</strong></p>
   <p>Reproducible evidence for the success–safety gap in physical AI.</p>
