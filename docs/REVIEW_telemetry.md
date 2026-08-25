@@ -1,8 +1,8 @@
 # Adversarial re-review — telemetry cluster (rv_0_telemetry)
 
-Date: 2026-08-12. Scope: `scripts/telemetry_rollout.py`, `scripts/safety_scorer.py`,
-`scripts/calibrate.py`, `scripts/smoke_test.py`, `scripts/stats.py`, `scripts/plots.py`,
-`scripts/eval_loop.sh`, plus `docs/HANDOFF.md` / `docs/amendments.md` claims about them.
+Date: 2026-08-12. Scope: `scripts/_backend_map/shared/telemetry_rollout.py`, `scripts/_backend_map/shared/safety_scorer.py`,
+`scripts/_backend_map/shared/calibrate.py`, `scripts/_backend_map/shared/smoke_test.py`, `scripts/_backend_map/shared/stats.py`, `scripts/_backend_map/shared/plots.py`,
+`scripts/_backend_map/shared/eval_loop.sh`, plus `docs/HANDOFF.md` / `docs/amendments.md` claims about them.
 
 Verification performed: full read of all cluster files; git diff of the working tree;
 comparison against the **installed gymnasium 1.2.3** `SyncVectorEnv`/`_add_info` source
@@ -14,7 +14,7 @@ six selftests; a stub-level execution trace of the terminal-telemetry capture or
 
 ### F1 — The smoke gate hard-fails: `eval_loop.sh` cannot run at all
 
-`python3 scripts/smoke_test.py` exits 1 on the **synthetic (numpy-only) phase**:
+`python3 scripts/_backend_map/shared/smoke_test.py` exits 1 on the **synthetic (numpy-only) phase**:
 
 ```
 SMOKE FAILED: RuntimeError: calibration filter FAILED: selected ('robot0_link', 'object_a')
@@ -28,9 +28,9 @@ wrong, not the filter. Root cause: a **signature mismatch between two `body_clas
 functions**:
 
 - `calibrate.body_class(name, object_names)` — 2nd arg is a **set** of object names
-  (`scripts/calibrate.py:74`).
+  (`scripts/_backend_map/shared/calibrate.py:74`).
 - `safety_scorer.body_class(name, classes_by_name)` — 2nd arg is a **dict** name→class
-  (`scripts/safety_scorer.py:88`).
+  (`scripts/_backend_map/shared/safety_scorer.py:88`).
 
 `smoke_test.pair_classes()` (`smoke_test.py:257`) calls whichever `body_class` it is given
 set-style, but `main()` passes `scorer.body_class` (`smoke_test.py:500`), so `"object_a"`

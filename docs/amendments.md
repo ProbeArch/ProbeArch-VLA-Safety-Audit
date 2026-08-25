@@ -184,7 +184,7 @@ lanes (`scripts/`); this documentation round records their status truthfully in
   exited nonzero on the synthetic calibration-filter check (set-vs-dict
   `body_class` call-site mismatch, live phase too). The final-fix round changed
   both call sites to `calibrate.body_class` (the set-contract classifier);
-  `python3 scripts/smoke_test.py` now prints `SMOKE PASSED` (numpy-only synthetic
+  `python3 scripts/_backend_map/shared/smoke_test.py` now prints `SMOKE PASSED` (numpy-only synthetic
   phase, no runtime deps) and `eval_loop.sh`'s step-0 smoke gate is clear. The
   live-phase checks still need the target machine.
 - **F2 (checked, not applicable):** the claimed post-reset terminal frame does not
@@ -257,7 +257,7 @@ status/wording corrections made here are:
   round — still unvalidated — re-run required after the F1 fix
 - (final-fix round, code + docs) **F1 fixed and verified locally:** the two
   `body_class` call sites in `smoke_test.py` now use `calibrate.body_class`;
-  `python3 scripts/smoke_test.py` → `SMOKE PASSED` and `telemetry_rollout.py
+  `python3 scripts/_backend_map/shared/smoke_test.py` → `SMOKE PASSED` and `telemetry_rollout.py
   --selftest`, `calibrate.py --self-test`, `safety_scorer.py --selftest`,
   `stats.py --selftest` all pass on this machine (synthetic phases only, no
   runtime deps). Docs (PROTOCOL/REPORT/amendments/HANDOFF/BACKLOG) updated to

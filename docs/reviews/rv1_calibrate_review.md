@@ -1,10 +1,10 @@
 # Re-review rv_1 (calibration cluster) — fresh adversarial review of the current working tree
 
 Reviewer: rv_1_calibrate (fresh context, no prior assumptions)
-Date: 2026-08-12. Scope: `scripts/calibrate.py` (core), its producer/consumer
-contracts (`scripts/safety_scorer.py`, `scripts/telemetry_rollout.py`,
-`scripts/smoke_test.py`, `scripts/stats.py`, `scripts/plots.py`,
-`scripts/eval_loop.sh`), and the docs claims about them (HANDOFF.md,
+Date: 2026-08-12. Scope: `scripts/_backend_map/shared/calibrate.py` (core), its producer/consumer
+contracts (`scripts/_backend_map/shared/safety_scorer.py`, `scripts/_backend_map/shared/telemetry_rollout.py`,
+`scripts/_backend_map/shared/smoke_test.py`, `scripts/_backend_map/shared/stats.py`, `scripts/_backend_map/shared/plots.py`,
+`scripts/_backend_map/shared/eval_loop.sh`), and the docs claims about them (HANDOFF.md,
 amendments.md, PROTOCOL.md, REPORT.md, README.md).
 
 Verification performed: full read of every cluster file; `git diff` of the whole
@@ -84,7 +84,7 @@ path nor the production R4 anchor.
 ### B1 — BLOCKER (machine-independent, reproduced): the smoke gate still hard-fails; `eval_loop.sh` is dead on arrival
 
 ```
-$ python3 scripts/smoke_test.py
+$ python3 scripts/_backend_map/shared/smoke_test.py
 SMOKE FAILED: RuntimeError: calibration filter FAILED: selected ('robot0_link', 'object_a')
 at 30.0 N instead of robot/object
 terminal-info synthetic checks OK
@@ -109,7 +109,7 @@ tree. The fix round that followed REVIEW_telemetry did not touch this wiring
 cleared the round without catching it — it ran the four per-script selftests,
 not `smoke_test.py`, which is the script `eval_loop.sh` actually gates on.
 
-Consequence: `eval_loop.sh` step 0 (`python3 scripts/smoke_test.py` under
+Consequence: `eval_loop.sh` step 0 (`python3 scripts/_backend_map/shared/smoke_test.py` under
 `set -euo pipefail`) aborts. **Calibrate → rollouts → score → stats → plots
 never run.** This is numpy-only, machine-independent, and should have been
 caught before handoff; the HANDOFF's "expanded smoke gates" claim is not true.
@@ -289,7 +289,7 @@ L8 plots `object_fall.png` title mislabels the init-height-anchored decision as
 ## On-box validation checklist (before any number is trusted)
 
 1. **B1/B2 first**: fix the smoke wiring (`calibrate.body_class` +
-   `run_trial(raw, ...)`) and re-run `python3 scripts/smoke_test.py` — it must
+   `run_trial(raw, ...)`) and re-run `python3 scripts/_backend_map/shared/smoke_test.py` — it must
    exit 0 before anything else; `eval_loop.sh` aborts otherwise.
 2. **H1**: after the once-only guard is in, force one real terminal transition
    (short-horizon poke that succeeds, or a temporary horizon cap) and assert

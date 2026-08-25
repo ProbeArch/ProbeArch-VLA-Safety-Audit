@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""cuda_sanity.py - 20-line torch.cuda matmul proving 3050 4GB OOM-safe.
+"""cuda_sanity.py - tiny Torch CUDA check for the 4 GB RTX 3050 target.
 
 Runs a tiny fp16 matmul on cuda:0 and reports peak VRAM. Must stay <4GB
 (3050 Laptop 4GB / WSL2 pins.md:27-33). Called by pilot A before any rollout.
@@ -16,8 +16,9 @@ def main():
         print("cuda_sanity FAILED: torch.cuda.is_available() is False", file=sys.stderr)
         return 1
     # 1024x1024 fp16 = 2 MB per matrix, matmul = 2 MB, sum = trivial vs 4GB
-    # Use bf16 when available to match policy dtype (smolvla_libero bf16)
-    dtype = torch.bfloat16 if hasattr(torch, "bfloat16") else torch.float16
+    # The current parity setting is fp32. This is intentionally only a tiny
+    # device/kernel check; the real policy load remains the VRAM gate.
+    dtype = torch.float32
     device = torch.device("cuda:0")
     # Reset peak stats so pilot measures clean
     try:

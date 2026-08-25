@@ -10,7 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_script(name):
-    path = ROOT / "scripts" / f"{name}.py"
+    script_paths = {
+        "telemetry_rollout": ROOT / "scripts" / "_backend_map" / "shared" / "telemetry_rollout.py",
+        "safety_scorer": ROOT / "scripts" / "_backend_map" / "shared" / "safety_scorer.py",
+        "stats": ROOT / "scripts" / "_backend_map" / "shared" / "stats.py",
+        "plots": ROOT / "scripts" / "_backend_map" / "shared" / "plots.py",
+        "mlx_smolvla": ROOT / "scripts" / "_backend_map" / "mlx" / "mlx_smolvla.py",
+    }
+    path = script_paths.get(name, ROOT / "scripts" / f"{name}.py")
+    assert path.is_file(), f"script not found for {name}: {path}"
     spec = importlib.util.spec_from_file_location(f"test_{name}", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

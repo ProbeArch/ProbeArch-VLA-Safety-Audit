@@ -9,10 +9,10 @@ number is trusted.**
 ## Green — verified by execution or direct code reading
 
 1. **F1 (smoke-gate blocker from `REVIEW_telemetry.md`) — FIXED, re-verified.**
-   Both `body_class` call sites in `scripts/smoke_test.py` use the set-contract
+   Both `body_class` call sites in `scripts/_backend_map/shared/smoke_test.py` use the set-contract
    `calibrate.body_class` (imports at :329, live phase at :414, synthetic phase
    at :510–512; `pair_classes` docstring documents the contract). Execution:
-   `python3 scripts/smoke_test.py` → `SMOKE PASSED`, exit 0 (numpy-only phase;
+   `python3 scripts/_backend_map/shared/smoke_test.py` → `SMOKE PASSED`, exit 0 (numpy-only phase;
    live phase correctly skips with a message when mujoco/lerobot are absent).
 2. **All five synthetic gates exit 0** (executed, exit codes captured):
    `smoke_test.py` 0, `telemetry_rollout.py --selftest` 0, `safety_scorer.py

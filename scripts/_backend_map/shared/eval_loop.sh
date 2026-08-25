@@ -2,7 +2,7 @@
 # The ProbeArch eval loop: smoke gate -> calibrate -> rollouts -> score -> stats -> plots.
 # Every pin in pins.md must hold before this produces numbers.
 #
-# Usage:  scripts/eval_loop.sh [SUITE] [N_PAIRS] [N_ENVS] [--resume|--force]
+# Usage:  scripts/_backend_map/shared/eval_loop.sh [SUITE] [N_PAIRS] [N_ENVS] [--resume|--force]
 #   (defaults: libero_spatial, 8 pairs, 4 envs; flags may appear in any position)
 #   --resume  continue a manifest-matched run. Reuses existing episodes only when
 #             the run manifest matches (policy, suite, resolution, n_envs/n_pairs,
@@ -14,15 +14,14 @@
 #   With neither flag, the loop fails fast if rollouts already contain episode
 #   files (stale v0.1 telemetry must never be rescored with v0.2 thresholds).
 #
-# Suite note: calibration (calibrate.py builds the LIBERO Spatial task-0 scene)
-# and the per-task loop (Spatial task ids 0-4) are Spatial-specific. Any other
-# suite is rejected rather than silently given Spatial thresholds.
+# Suite note: calibration and task dispatch are suite-aware. Each suite gets its
+# own calibration and task-id range; never reuse thresholds across suites.
 #
 #         N_TRIALS         calibrate.py repetitions per control set (default 5, max MAX_TRIALS)
 #         MAX_TRIALS       upper bound passed to calibrate --max-trials (default 100)
 set -euo pipefail
 
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 export AUDIT_DIR="${AUDIT_DIR:-$HOME/audit}"
 if [[ -z "${MUJOCO_GL:-}" ]]; then
@@ -86,13 +85,21 @@ if [[ "$POLICY_BACKEND" != "cuda" && "$POLICY_BACKEND" != "mlx" ]]; then
   exit 2
 fi
 
-# Calibration and the task loop are LIBERO Spatial-specific (see header).
-if [[ "$SUITE" != "libero_spatial" ]]; then
-  echo "Refusing: suite '$SUITE' is not supported." >&2
-  echo "This harness calibrates and rolls out LIBERO Spatial task ids 0-4 only;" >&2
-  echo "other suites would receive Spatial thresholds." >&2
-  exit 2
-fi
+# Resolve the installed suite's task ids explicitly. Keep this shell launcher
+# aligned with telemetry_rollout.py, which validates the same suite registry.
+case "$SUITE" in
+  libero_spatial|libero_object|libero_goal|libero_10)
+    TASK_IDS=(0 1 2 3 4 5 6 7 8 9)
+    ;;
+  libero_90)
+    TASK_IDS=($(seq 0 89))
+    ;;
+  *)
+    echo "Refusing: suite '$SUITE' is not supported." >&2
+    echo "Supported suites: libero_spatial, libero_object, libero_goal, libero_10, libero_90" >&2
+    exit 2
+    ;;
+esac
 
 mkdir -p "$AUDIT_DIR"
 ROLLOUTS_DIR="$AUDIT_DIR/rollouts"
@@ -159,19 +166,19 @@ echo "== $(date) == eval start: policy=$POLICY backend=$POLICY_BACKEND suite=$SU
 #    Every gate must exit 0 - a nonzero exit aborts the whole run before any
 #    calibration or rollout. The smoke gate adds a best-effort live rollout
 #    when the runtime deps are installed.
-for t in telemetry_rollout safety_scorer stats mlx_smolvla; do
-  echo "== selftest: $t =="
-  "$PYTHON_BIN" "$REPO/scripts/$t.py" --selftest
+for spec in "shared/telemetry_rollout" "shared/safety_scorer" "shared/stats" "mlx/mlx_smolvla"; do
+  echo "== selftest: $spec =="
+  "$PYTHON_BIN" "$REPO/scripts/_backend_map/$spec.py" --selftest
 done
 echo "== selftest: calibrate =="
-"$PYTHON_BIN" "$REPO/scripts/calibrate.py" --self-test
+"$PYTHON_BIN" "$REPO/scripts/_backend_map/shared/calibrate.py" --self-test
 echo "== smoke gate =="
-"$PYTHON_BIN" "$REPO/scripts/smoke_test.py"
+"$PYTHON_BIN" "$REPO/scripts/_backend_map/shared/smoke_test.py"
 
 # 1) positive-control calibration -> $AUDIT_DIR/calibration.json (scorer-validated).
 #    Skipped on --resume: re-running would change its sha256 and break the run manifest.
 if [[ "$RESUME" != "1" ]]; then
-  "$PYTHON_BIN" "$REPO/scripts/calibrate.py" \
+  "$PYTHON_BIN" "$REPO/scripts/_backend_map/shared/calibrate.py" \
     --suite "$SUITE" \
     --task-id 0 \
     --n-trials "$N_TRIALS" \
@@ -181,8 +188,8 @@ validate_calibration
 
 # 2) instrumented rollouts (per-step states + contacts saved per episode).
 #    Keep each task in its own process: building all task envs together can segfault.
-for task_id in 0 1 2 3 4; do
-  "$PYTHON_BIN" "$REPO/scripts/telemetry_rollout.py" \
+for task_id in "${TASK_IDS[@]}"; do
+  "$PYTHON_BIN" "$REPO/scripts/_backend_map/shared/telemetry_rollout.py" \
     --suite "$SUITE" \
     --task_ids "$task_id" \
     --policy "$POLICY" \
@@ -192,7 +199,7 @@ for task_id in 0 1 2 3 4; do
 done
 
 # Verify per-task metrics survived and the aggregate is complete (each invocation
-# writes <task>/metrics.json; the merged metrics.json must cover all 5 tasks and
+# writes <task>/metrics.json; the merged metrics.json must cover every task and
 # hold only finite values - NaN would silently corrupt the JSON).
 "$PYTHON_BIN" - "$ROLLOUTS_DIR" "$SUITE" "$N_ENVS" "$N_PAIRS" <<'PY'
 import json
@@ -219,7 +226,8 @@ if missing_manifest:
 
 with open(f"{roll}/metrics.json") as f:
     agg = json.load(f)
-expected = {f"{suite}_{t}" for t in range(5)}
+task_count = 90 if suite == "libero_90" else 10
+expected = {f"{suite}_{t}" for t in range(task_count)}
 missing = expected - set(agg)
 if missing:
     sys.exit(f"aggregate metrics.json missing tasks: {sorted(missing)}")
@@ -242,10 +250,10 @@ print(f"metrics OK: {len(agg)} tasks, {sum(m['n_episodes'] for m in agg.values()
 PY
 
 # 3) safety scoring (pre-registered rules, positive-control validated)
-"$PYTHON_BIN" "$REPO/scripts/safety_scorer.py"
+"$PYTHON_BIN" "$REPO/scripts/_backend_map/shared/safety_scorer.py"
 
 # 4) aggregate stats + figures
-"$PYTHON_BIN" "$REPO/scripts/stats.py"
-"$PYTHON_BIN" "$REPO/scripts/plots.py"
+"$PYTHON_BIN" "$REPO/scripts/_backend_map/shared/stats.py"
+"$PYTHON_BIN" "$REPO/scripts/_backend_map/shared/plots.py"
 
 echo "== $(date) == eval done -> $AUDIT_DIR"
