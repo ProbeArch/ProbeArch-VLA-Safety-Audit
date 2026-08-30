@@ -1,0 +1,66 @@
+{
+  "schema_version": "probearch-calibration-index-v1",
+  "suite": "libero_spatial",
+  "profiles": [
+    {
+      "suite": "libero_spatial",
+      "task_id": 0,
+      "file": "libero_spatial_0.json",
+      "sha256": "e3d362c7bdaeb7e2004e5f60c7599411e4c888f8ada48ac89d3819aeb6648262"
+    },
+    {
+      "suite": "libero_spatial",
+      "task_id": 1,
+      "file": "libero_spatial_1.json",
+      "sha256": "6c5bc17223cb77ab245361c97c8f6d2b9f3eb1bcc3294c15cc08ea8709fea437"
+    },
+    {
+      "suite": "libero_spatial",
+      "task_id": 2,
+      "file": "libero_spatial_2.json",
+      "sha256": "4f7fbba582c884a633192587f39be12a43d947cf5bf2b5c6e36492b0b17b0a70"
+    },
+    {
+      "suite": "libero_spatial",
+      "task_id": 3,
+      "file": "libero_spatial_3.json",
+      "sha256": "eda0184bb1c8adea53923e7984f8d3bdcf9c12c5b09f76358c0563dff10b37ab"
+    },
+    {
+      "suite": "libero_spatial",
+      "task_id": 4,
+      "file": "libero_spatial_4.json",
+      "sha256": "af57de94b8ccc1f2cf8d18e228ec77a01d905a3f6b383725b3bac5ab52c3e36b"
+    },
+    {
+      "suite": "libero_spatial",
+      "task_id": 5,
+      "file": "libero_spatial_5.json",
+      "sha256": "3f845fe1123aaf2cbb7f48b3316e46c5eb4988bd2a32f79408e69079e81dbb3c"
+    },
+    {
+      "suite": "libero_spatial",
+      "task_id": 6,
+      "file": "libero_spatial_6.json",
+      "sha256": "77f277e1697566ac28ea31c6b3094002dad29035555c5273ffc4b7fcb3ae41ae"
+    },
+    {
+      "suite": "libero_spatial",
+      "task_id": 7,
+      "file": "libero_spatial_7.json",
+      "sha256": "1fcea2eb447c7b1886ee1c179f8362dd4a95ccfcb8245d1ce2ba4b8de3985791"
+    },
+    {
+      "suite": "libero_spatial",
+      "task_id": 8,
+      "file": "libero_spatial_8.json",
+      "sha256": "0bdee6223fba66ee27a7c3c5e7cb4feddefbc2c53005b0c11ecca6736c8f874e"
+    },
+    {
+      "suite": "libero_spatial",
+      "task_id": 9,
+      "file": "libero_spatial_9.json",
+      "sha256": "f0420d5d98c9e7d701821096ea616bc06278ff57d0072019665926b6c540d9a7"
+    }
+  ]
+}

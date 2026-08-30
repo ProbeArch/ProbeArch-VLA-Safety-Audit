@@ -4,9 +4,10 @@
 - 2026-08-12: initial pins registered before any model rollout.
 - 2026-08-12 02:46: install resolved. LeRobot pinned to `d324ffe8…` (parent of `59ab2862…`): the 2026-08-10 HEAD requires Python>=3.12 (torch/torchvision cp310 wheels pinned earlier kept the env at 3.10; eval harness code identical, change is dependency-metadata only).
 - 2026-08-12 (fix round 2): `gymnasium>=1.1.1,<2.0.0` added to the resolved matrix. The telemetry success reader depends on the gymnasium 1.x `SyncVectorEnv._add_info` behavior of recursively vectorizing `final_info` into per-key arrays; the `<2.0.0` cap guards against future vector-info shape changes. Matches the pinned lerobot `pyproject.toml` constraint (resolved `gymnasium==1.2.1` in its requirements files). Post-hoc entry — recorded during harness re-verification after the v0.1 retraction.
-- 2026-08-13: optional Apple Silicon policy backend (`POLICY_BACKEND=mlx` / `telemetry_rollout.py --device mlx`) added. It loads `HuggingFaceVLA/smolvla_libero` through `scripts/_backend_map/mlx/mlx_smolvla.py` (MLX when installed, NumPy self-tests otherwise). The official audit pin remains CUDA/LeRobot; MLX results must be labeled separately until a paired parity run exists.
-- 2026-08-24: harness aligns to reproducible LIBERO-Spatial pins while keeping `py3.10/d324ffe8` + `mujoco 3.8.1` (user: don't downgrade): `LiberoEnv` `360×360` `control_mode=relative`, `policy.n_action_steps=1` `policy.num_steps=1` `fp32` (was `256`/`steps10`/`bf16`). Original `256/3.8.1/EGL` gave 0/32 on task 0 vs expected ~80%; `360/relative/nas1/steps1` matches `zuoxingdong 81.5%` pin (mujoco 3.3.2/OSMesa recommended, 3.8.1 kept here).
+- 2026-08-13: optional Apple Silicon policy backend (`POLICY_BACKEND=mlx` / `telemetry_rollout.py --device mlx`) added. It loads `HuggingFaceVLA/smolvla_libero` through `scripts/audit/mlx/mlx_smolvla.py` (MLX when installed, NumPy self-tests otherwise). The official audit pin remains CUDA/LeRobot; MLX results must be labeled separately until a paired parity run exists.
+- 2026-08-24: harness aligned to reproducible LIBERO-Spatial pins while keeping `py3.10/d324ffe8` + `mujoco 3.8.1` (user: don't downgrade): `LiberoEnv` `360×360` `control_mode=relative`, `policy.n_action_steps=1` `policy.num_steps=1` `fp32` (was `256`/`steps10`/`bf16`). Original `256/3.8.1/EGL` gave 0/32 on task 0 vs expected ~80%; `360/relative/nas1/steps1` matches the then-selected `zuoxingdong 81.5%` pin (mujoco 3.3.2/OSMesa recommended, 3.8.1 kept here).
 - 2026-08-25: target CUDA environment verified with `gymnasium==1.3.0` (within the declared `>=1.1.1,<2.0.0` contract); manifests now record the resolved runtime versions and policy inference settings.
+- 2026-08-29: controlled target-runtime A/B check tested `num_steps=10` (with `n_action_steps=1`) and `num_steps=10,n_action_steps=10`; both failed deterministic task 9 where the validated `num_steps=1,n_action_steps=1` setting succeeded. The audit default therefore remains `num_steps=1,n_action_steps=1`; the 10-step variants are explicit ablations, not replacements.
 
 ## Environment matrix (final resolved versions — see notes for deviations)
 
@@ -24,7 +25,7 @@
 | av | 15.1.0 | |
 | datasets | 4.8.5 | |
 | egl_probe | 1.0.2 **patched** | sdist declares cmake_minimum_required 2.8.12 → patched to 3.5 in CMakeLists before building |
-| policy | HuggingFaceVLA/smolvla_libero sha 6721902bc4d61e50a3bfdb11dfb4cb626f05d102 (fp32, `n_action_steps=1` `num_steps=1` vs prior `bf16`/`steps10`) | |
+| policy | HuggingFaceVLA/smolvla_libero sha 6721902bc4d61e50a3bfdb11dfb4cb626f05d102 (fp32, `n_action_steps=1` `num_steps=1`; `num_steps=10` is an explicit ablation) | empirically validated target-runtime schedule |
 | observation | 360×360, `control_mode=relative` (was 256) | matches `zuoxingdong` recommended `360`/`relative` |
 
 ### CUDA (official audit, WSL2/Linux, `POLICY_BACKEND=cuda`)
@@ -39,7 +40,7 @@
 | component | pin | reason |
 |---|---|---|
 | Python | 3.10.20 (uv venv) or 3.11 | validated with 3.10.20 on M5 via `uv` per `docs/reports/mlx_safety_benchmark_report.md` |
-| mlx | 0.32.1 + mlx-metal (Metal `Device(gpu,0)`) | Apple Silicon backend; `scripts/_backend_map/mlx/mlx_smolvla.py` |
+| mlx | 0.32.1 + mlx-metal (Metal `Device(gpu,0)`) | Apple Silicon backend; `scripts/audit/mlx/mlx_smolvla.py` |
 | torch | 2.11.0 (optional, for tokenizer fallback) | not required for MLX inference; present on M5 per report |
 | MUJOCO_GL | glfw (or cgl) | macOS window system; auto-detected on Darwin via `eval_loop.sh` |
 | transformers | 5.5.4 / tokenizers 0.22.2 | validated on M5 |

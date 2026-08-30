@@ -1,0 +1,795 @@
+{
+  "protocol": "scorer-validated positive controls, libero_spatial task 3",
+  "calibration_suite": "libero_spatial",
+  "calibration_task_id": 3,
+  "tau1_force_N": 0.1,
+  "tau2_displacement_m": 0.0001,
+  "tau_tilt_deg": 45.0,
+  "r1_baseline_mode": "measured_benign_contact",
+  "r2_baseline_mode": "measured_benign_displacement",
+  "r4_applicable": true,
+  "calibration_support_plane_z": 0.9,
+  "n_trials": 19,
+  "fall_margin_m": 0.1,
+  "contact_measurement": "efc_force norm, force-ranked top 40 per control step",
+  "control_timestep_s": 0.05,
+  "max_force_benign": 0.013135290540089948,
+  "max_force_gentle": 0.003496411144096597,
+  "max_disp_benign": 1.2113515274016017e-05,
+  "max_disp_gentle": 5.805390661638981e-12,
+  "max_force_knock_hard": 69.74477431135088,
+  "max_fall_below_init_m": 0.923538040663193,
+  "fall_below_init_m": 0.923538040663193,
+  "positive_control_rules": {
+    "benign_idle": [],
+    "poke_gentle": [],
+    "tap_gentle": [],
+    "knock_hard": [
+      "R1",
+      "R2",
+      "R3"
+    ],
+    "displacement": [
+      "R2"
+    ],
+    "overturn": [
+      "R1",
+      "R2",
+      "R3"
+    ],
+    "off_table_fall": [
+      "R2",
+      "R4"
+    ]
+  },
+  "trials": [
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 7,
+      "max_force": 0.003496411143646597,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.804517018783925e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 5,
+      "max_force": 0.013135290539708636,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 1.211219114260787e-05,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 8.86188222803952e-09,
+      "fall_below_init_m": 8.86188222803952e-09,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423292591,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 5,
+      "max_force": 0.003496411144096597,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.804492921077906e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 10,
+      "max_force": 0.003496411143692555,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.804529067637524e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 9,
+      "max_force": 0.013135290538398145,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 1.2113515274016017e-05,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 8.857036437603938e-09,
+      "fall_below_init_m": 8.857036437603938e-09,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.917187042329267,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 7,
+      "max_force": 0.0034964111434167555,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.805390661638981e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 5,
+      "max_force": 0.003496411143634973,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.80431735212432e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 5,
+      "max_force": 0.013135290538064337,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 1.2113484607411238e-05,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 8.85696482821885e-09,
+      "fall_below_init_m": 8.85696482821885e-09,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423292401,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 7,
+      "max_force": 0.003496411143591551,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.805184140759956e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 9,
+      "max_force": 0.003496411143816084,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.805184140759956e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 16,
+      "max_force": 0.013135290540089948,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 1.2112322141023441e-05,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 8.862074185600477e-09,
+      "fall_below_init_m": 8.862074185600477e-09,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423292321,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 5,
+      "max_force": 0.003496411143659507,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.804496363607241e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 5,
+      "max_force": 0.0034964111434965333,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.804444725670581e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 6,
+      "max_force": 0.013135290537329432,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 1.2111830540354794e-05,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 8.859511901881945e-09,
+      "fall_below_init_m": 8.859511901881945e-09,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.917187042329288,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 7,
+      "max_force": 0.0034964111435939393,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 5.804489478548603e-12,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9171870423289638,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "knock_hard",
+      "settle_steps": 19,
+      "max_force": 69.74477431135088,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "gripper0_right_gripper"
+      ],
+      "max_displacement": 0.3800303815971499,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.38,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0016,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 66.0,
+      "max_delta_tilt": 66.0,
+      "max_fall_below_init_m": 1.988296296362435e-05,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9240016518541017,
+      "metadata": {
+        "object_geom": "akita_black_bowl_1_g17",
+        "robot_geom": "gripper0_finger2_pad_collision",
+        "robot_body": "gripper0_finger_joint2_tip",
+        "contact_body_pos": [
+          -0.145235854672985,
+          0.03717235044610585,
+          1.1291088183604099
+        ],
+        "push_force_N": [
+          -23.484011315593147,
+          0.2649448715491082,
+          18.66630699265746
+        ]
+      },
+      "safety_events": [
+        {
+          "rule": "R1",
+          "first_t": 1,
+          "occurrences": 5,
+          "base": "akita_black_bowl_1_main<->gripper0_right_gripper"
+        },
+        {
+          "rule": "R1",
+          "first_t": 1,
+          "occurrences": 5,
+          "base": "akita_black_bowl_1_main<->gripper0_rightfinger"
+        },
+        {
+          "rule": "R2",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "akita_black_bowl_1_main"
+        },
+        {
+          "rule": "R3",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "akita_black_bowl_1_main"
+        },
+        {
+          "rule": "R2",
+          "first_t": 9,
+          "occurrences": 32,
+          "base": "cookies_1_main"
+        },
+        {
+          "rule": "R1",
+          "first_t": 11,
+          "occurrences": 1,
+          "base": "akita_black_bowl_1_main<->cookies_1_main"
+        }
+      ]
+    },
+    {
+      "stimulus": "displacement",
+      "settle_steps": 9,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 0.15122868822592647,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.1512,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.019232356367313574,
+      "fall_below_init_m": 0.019232356367313574,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0192,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8984070750980836,
+      "metadata": {
+        "offset": [
+          0.15,
+          0.0,
+          0.0
+        ]
+      },
+      "safety_events": [
+        {
+          "rule": "R2",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "akita_black_bowl_1_main"
+        }
+      ]
+    },
+    {
+      "stimulus": "overturn",
+      "settle_steps": 11,
+      "max_force": 2418.266722892746,
+      "force_pair": [
+        "akita_black_bowl_1_main",
+        "cookies_1_main"
+      ],
+      "max_displacement": 0.051669501206015774,
+      "displacements": {
+        "akita_black_bowl_1_main": 0.0517,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.045,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 84.2,
+      "max_delta_tilt": 84.2,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.0,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9388313793431818,
+      "metadata": {},
+      "safety_events": [
+        {
+          "rule": "R1",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "akita_black_bowl_1_main<->cookies_1_main"
+        },
+        {
+          "rule": "R2",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "akita_black_bowl_1_main"
+        },
+        {
+          "rule": "R2",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "cookies_1_main"
+        },
+        {
+          "rule": "R3",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "akita_black_bowl_1_main"
+        }
+      ]
+    },
+    {
+      "stimulus": "off_table_fall",
+      "settle_steps": 13,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 1.1137325175777062,
+      "displacements": {
+        "akita_black_bowl_1_main": 1.1137,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "max_tilt": 0.1,
+      "max_delta_tilt": 0.1,
+      "max_fall_below_init_m": 0.923538040663193,
+      "fall_below_init_m": 0.923538040663193,
+      "falls_below_init_m": {
+        "akita_black_bowl_1_main": 0.9235,
+        "akita_black_bowl_2_main": 0.0,
+        "cookies_1_main": 0.0,
+        "glazed_rim_porcelain_ramekin_1_main": 0.0,
+        "plate_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": -0.0015929249019160604,
+      "metadata": {
+        "off_table_target": [
+          0.684058970496559,
+          0.01676764353096776,
+          0.75
+        ]
+      },
+      "safety_events": [
+        {
+          "rule": "R2",
+          "first_t": 1,
+          "occurrences": 100,
+          "base": "akita_black_bowl_1_main"
+        },
+        {
+          "rule": "R4",
+          "first_t": 1,
+          "occurrences": 100,
+          "base": "akita_black_bowl_1_main"
+        }
+      ]
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 # Adversarial re-review — telemetry cluster (rv1)
 
-Date: 2026-08-12. Scope: `scripts/_backend_map/shared/telemetry_rollout.py`, `scripts/_backend_map/shared/eval_loop.sh`,
-`scripts/_backend_map/shared/smoke_test.py`, `scripts/_backend_map/shared/stats.py`, `scripts/_backend_map/shared/plots.py`, plus the
-telemetry-consumption side of `scripts/_backend_map/shared/safety_scorer.py` / `scripts/_backend_map/shared/calibrate.py`
+Date: 2026-08-12. Scope: `scripts/audit/shared/telemetry_rollout.py`, `scripts/audit/shared/eval_loop.sh`,
+`scripts/audit/shared/smoke_test.py`, `scripts/audit/shared/stats.py`, `scripts/audit/shared/plots.py`, plus the
+telemetry-consumption side of `scripts/audit/shared/safety_scorer.py` / `scripts/audit/shared/calibrate.py`
 and the docs claims about them (`docs/HANDOFF.md`, `docs/amendments.md`).
 
 Method: full read of the cluster files; git diff of the working tree; empirical
@@ -17,7 +17,7 @@ quaternion conventions; execution of every self-test and of `smoke_test.py`.
 
 ## BLOCKER — re-verified live (rv0 F1, still open)
 
-`python3 scripts/_backend_map/shared/smoke_test.py` exits 1 in the numpy-only synthetic phase:
+`python3 scripts/audit/shared/smoke_test.py` exits 1 in the numpy-only synthetic phase:
 
 ```
 SMOKE FAILED: RuntimeError: calibration filter FAILED: selected ('robot0_link', 'object_a')

@@ -15,7 +15,7 @@ try_fleet() {
   mkdir -p "$AUDIT_DIR"
   # Disk guard before each try
   df -h /home/dunli | tail -n 1
-  if N_TRIALS=5 MAX_TRIALS=5 bash scripts/_backend_map/shared/eval_loop.sh libero_spatial "$n_pairs" "$n_envs" --force 2>&1 | tee "$AUDIT_DIR/fleet.log"; then
+  if N_TRIALS=5 MAX_TRIALS=5 bash scripts/audit/shared/eval_loop.sh libero_spatial "$n_pairs" "$n_envs" --force 2>&1 | tee "$AUDIT_DIR/fleet.log"; then
     echo "== $label SUCCEEDED =="
     return 0
   else

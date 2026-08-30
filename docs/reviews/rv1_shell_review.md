@@ -1,9 +1,9 @@
 # Re-review rv_1_shell — adversarial review of the shell lane (eval_loop.sh / ship.sh) + pipeline contract
 
-Reviewer: rv_1_shell (fresh context, no prior assumptions). Scope: `scripts/_backend_map/shared/eval_loop.sh`,
-`scripts/ship.sh` (core), producers/consumers `scripts/_backend_map/shared/telemetry_rollout.py`,
-`scripts/_backend_map/shared/calibrate.py`, `scripts/_backend_map/shared/safety_scorer.py`, `scripts/_backend_map/shared/smoke_test.py`,
-`scripts/_backend_map/shared/stats.py`, `scripts/_backend_map/shared/plots.py`, `.gitignore`, `pins.md`, and docs
+Reviewer: rv_1_shell (fresh context, no prior assumptions). Scope: `scripts/audit/shared/eval_loop.sh`,
+`scripts/ship.sh` (core), producers/consumers `scripts/audit/shared/telemetry_rollout.py`,
+`scripts/audit/shared/calibrate.py`, `scripts/audit/shared/safety_scorer.py`, `scripts/audit/shared/smoke_test.py`,
+`scripts/audit/shared/stats.py`, `scripts/audit/shared/plots.py`, `.gitignore`, `pins.md`, and docs
 (HANDOFF / amendments / PROTOCOL / REPORT / README). All files read in full;
 producers/consumers cross-grepped; every selftest executed on this machine;
 `ensure_manifest` root-manifest behavior reproduced standalone; the F2 terminal-
@@ -30,7 +30,7 @@ the validation run must not start until B1/B2 are fixed and H1 is decided.
 Reproduced on this machine (numpy-only phase):
 
 ```
-$ python3 scripts/_backend_map/shared/smoke_test.py ; echo $?
+$ python3 scripts/audit/shared/smoke_test.py ; echo $?
 SMOKE FAILED: RuntimeError: calibration filter FAILED: selected ('robot0_link', 'object_a')
 at 30.0 N instead of robot/object
 terminal-info synthetic checks OK
@@ -56,7 +56,7 @@ handoff.
 ### B2 — NEW: root `run_manifest.json` `task_ids` exact-match breaks the per-task process loop; the fleet can never run past task 0
 
 `eval_loop.sh` runs `telemetry_rollout.py` **once per task** (A4 process isolation:
-`for task_id in 0 1 2 3 4; do python3 scripts/_backend_map/shared/telemetry_rollout.py --task_ids "$task_id" ...`).
+`for task_id in 0 1 2 3 4; do python3 scripts/audit/shared/telemetry_rollout.py --task_ids "$task_id" ...`).
 But `telemetry_rollout.py` builds `root_expected["task_ids"] = sorted(args.task_ids)`
 (→ `[0]`, then `[1]`, …) and `ensure_manifest()` validates the shared root
 `$AUDIT_DIR/rollouts/run_manifest.json` with **exact equality on every key**

@@ -1,0 +1,50 @@
+{
+  "harness_schema_version": "probearch-telemetry-v0.4",
+  "git_revision": "e813c78502bbd276037250cc9779f561dc89159d-dirty-a99f4eb452887817",
+  "policy": "HuggingFaceVLA/smolvla_libero",
+  "policy_sha256": "e779efb7754a98f263fe010fc8982b0c3226ae370bc5a6a89ea565836c8c8e94",
+  "policy_backend": "cuda",
+  "suite": "libero_10",
+  "task_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "resolution": [
+    360,
+    360
+  ],
+  "max_steps_requested": null,
+  "n_envs": 1,
+  "n_pairs": 20,
+  "num_steps": 1,
+  "episode_offset": 0,
+  "calibration_sha256": "8d73be041826a6ad123d3825ef04de63152b313ef4a435e110b03d46a7547dac",
+  "runtime": {
+    "python": "3.10.20",
+    "platform": "Linux-6.18.33.1-microsoft-standard-WSL2-x86_64-with-glibc2.43",
+    "mujoco": "3.8.1",
+    "gymnasium": "1.3.0",
+    "lerobot": "0.4.5",
+    "lerobot_git_revision": "d324ffe810d17264a0b1e628698aa1fa09aa639c",
+    "mujoco_gl": "egl",
+    "policy_runtime_config": {
+      "n_action_steps": 1,
+      "num_steps": 1,
+      "use_amp": false
+    },
+    "torch": "2.9.1+cu128",
+    "torch_cuda": "12.8",
+    "cuda_available": true,
+    "cuda_device": "NVIDIA GeForce RTX 3050 Laptop GPU"
+  },
+  "run_id": "1578a48a9d7e4bf793c6a9f35dde8917",
+  "created_unix": 1787989301.735703
+}

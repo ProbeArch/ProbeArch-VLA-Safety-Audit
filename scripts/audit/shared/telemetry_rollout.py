@@ -1,0 +1,1173 @@
+#!/usr/bin/env python
+"""telemetry_rollout.py - instrumented LIBERO rollouts for the ProbeArch VLA Safety Audit.
+
+Mirrors lerobot eval_main construction exactly (same env/pre/post processors, same policy
+loading, same observation flow), but runs n_envs sync-batched and dumps per-step physics
+telemetry per episode:
+
+  - contact events (geom pair -> body pair, effective force norm)
+  - free-body poses (pos + quat) for every non-robot, non-static body
+  - eef pose per step, and the action that produced the observed state
+
+One JSON file per episode: {task, task_id, env_ix, pair, ep_ix, init_state_id, success,
+n_steps, max_episode_steps, steps[...]}.
+
+Usage:
+  python telemetry_rollout.py --suite libero_spatial --task_ids 0 1 --n_envs 1 --n_pairs 10
+  python telemetry_rollout.py --selftest   # synthetic read_success unit tests (no runtime deps)
+"""
+import argparse
+import hashlib
+import importlib.util
+import importlib.metadata
+import json
+import math
+import os
+import platform
+import subprocess
+import sys
+import time
+import uuid
+from functools import lru_cache
+from pathlib import Path
+
+import numpy as np
+
+_SHARED_DIR = str(Path(__file__).resolve().parent)
+if _SHARED_DIR not in sys.path:
+    sys.path.insert(0, _SHARED_DIR)
+from mujoco_names import body_name as authoritative_body_name
+from mujoco_names import geom_name as authoritative_geom_name
+
+HARNESS_SCHEMA_VERSION = "probearch-telemetry-v0.4"
+POLICY_BACKENDS = ("cuda", "mlx")
+
+# Per-step contact record budget. R1-eligible contacts (robot-object /
+# object-object) are never evicted by the truncation: see collect_telemetry().
+MAX_CONTACTS = 40
+MAX_R1_CONTACTS = 512
+
+# Fallback only for wrappers that do not expose their init-state tensor. In a
+# live LIBERO environment the actual task-specific tensor length is used.
+DEFAULT_INIT_STATE_COUNT = 32
+SUPPORTED_LIBERO_SUITES = (
+    "libero_spatial",
+    "libero_object",
+    "libero_goal",
+    "libero_10",
+    "libero_90",
+)
+
+
+def suite_task_ids(suite: str) -> tuple[int, ...]:
+    """Return task IDs from the installed LIBERO benchmark registry."""
+    try:
+        from libero.libero.benchmark import get_benchmark
+
+        benchmark = get_benchmark(suite)()
+    except Exception as exc:
+        raise ValueError(
+            f"unsupported or unavailable LIBERO suite {suite!r}; "
+            f"supported suites are {list(SUPPORTED_LIBERO_SUITES)}"
+        ) from exc
+    return tuple(range(int(benchmark.n_tasks)))
+
+
+def _indexed_bool(value, k, mask=None):
+    """Return a masked scalar bool at index ``k``, or None when unavailable."""
+    try:
+        if mask is not None and not bool(mask[k]):
+            return None
+        item = value[k]
+    except (TypeError, IndexError, KeyError):
+        return None
+    if item is None:
+        return None
+    try:
+        return bool(item)
+    except (TypeError, ValueError):
+        return None
+
+
+def _masked_out(mask, k):
+    """True iff ``mask`` explicitly excludes index ``k`` (absent mask -> False)."""
+    if mask is None:
+        return False
+    try:
+        return not bool(mask[k])
+    except (TypeError, IndexError, KeyError):
+        return False
+
+
+def read_success_with_source(info, k):
+    """Return terminal ``is_success`` and the vector-info source for sub-env ``k``.
+
+    Handles every shape produced by pinned LiberoEnv.step() + gymnasium vector
+    envs (verified against gymnasium 1.2.3 SyncVectorEnv._add_info):
+
+      1. final_info as a recursed dict of per-key arrays:
+             final_info == {"is_success": np.array([...]), "_is_success": mask,
+                            "task": [...], "_task": mask, "done": [...], ...}
+         plus a top-level info["_final_info"] mask.
+      2. final_info as a list/tuple of per-env dicts, gated by the top-level
+         "_final_info" mask.
+      3. legacy {env_index: terminal_info} dicts.
+      4. plain top-level info["is_success"] array (+ "_is_success" mask).
+
+    The nested branches NEVER return None early: when the final_info form is
+    masked out or unusable for ``k``, we ALWAYS fall through to the top-level
+    ``info["is_success"]`` array. ``"none"`` is returned only when nothing usable
+    exists at all (or the top-level value is itself masked out).
+    """
+    if not isinstance(info, dict):
+        return None, "none"
+
+    fi = info.get("final_info")
+    if fi is not None:
+        outer_mask = info.get("_final_info")
+        if isinstance(fi, dict):
+            # Legacy shape {env_index: terminal_info}.
+            entry = fi.get(k)
+            if isinstance(entry, dict) and "is_success" in entry:
+                value = _indexed_bool([entry["is_success"]], 0, [True])
+                if value is not None:
+                    return value, "final_info-legacy"
+            # Gymnasium >=1.1 recursed per-key arrays with per-key masks.
+            value = fi.get("is_success")
+            mask = fi.get("_is_success")
+            if mask is None:
+                mask = outer_mask
+            if value is not None and not _masked_out(mask, k):
+                value = _indexed_bool(value, k, mask)
+                if value is not None:
+                    return value, "final_info-dict"
+        elif isinstance(fi, (list, tuple)) and not _masked_out(outer_mask, k):
+            if k < len(fi):
+                entry = fi[k]
+                if isinstance(entry, dict) and "is_success" in entry:
+                    value = _indexed_bool([entry["is_success"]], 0, [True])
+                    if value is not None:
+                        return value, "final_info-list"
+    # Always fall through to the top-level array instead of returning None.
+    value = info.get("is_success")
+    if value is not None:
+        result = _indexed_bool(value, k, info.get("_is_success"))
+        return result, "top-level" if result is not None else "top-level-masked"
+    return None, "none"
+
+
+def read_success(info, k):
+    return read_success_with_source(info, k)[0]
+
+
+def run_selftest():
+    """Synthetic unit tests for read_success (plain python, no gymnasium/lerobot).
+
+    Exercises every info shape: recursed dict-of-arrays, masked dict entries,
+    list-of-dicts, legacy env-index dict, top-level array, masked top-level,
+    numpy scalars, and empty/non-dict inputs. Returns 0 on success, 1 on any
+    failure; invoked via ``python telemetry_rollout.py --selftest``.
+    """
+    failures = []
+
+    def check(name, got, want):
+        if got != want:
+            failures.append(f"{name}: got {got!r}, want {want!r}")
+        else:
+            print(f"  ok  {name}")
+
+    def per_key(done, succ, mask):
+        return {
+            "task": list(range(len(done))),
+            "done": np.array(done, dtype=bool),
+            "is_success": np.array(succ, dtype=bool),
+            "_is_success": np.array(mask, dtype=bool),
+        }
+
+    # 1) Gymnasium >=1.1 recursed per-key final_info dict (authoritative shape).
+    fi = per_key([False, True, False], [False, True, False], [True, True, True])
+    info = {
+        "final_info": fi,
+        "_final_info": np.array([False, True, False], dtype=bool),
+        "is_success": np.array([False, True, False], dtype=bool),
+    }
+    check("dict-of-arrays: terminated success", read_success(info, 1), True)
+    check(
+        "dict-of-arrays source",
+        read_success_with_source(info, 1),
+        (True, "final_info-dict"),
+    )
+    # Env 0 did not terminate this step: mask False -> fall through to top-level.
+    check("dict-of-arrays: masked -> top-level", read_success(info, 0), False)
+
+    # 2) Masked-out final_info entry must fall through, not return None.
+    fi2 = per_key([False, True, False], [True, True, True], [False, True, False])
+    info2 = {
+        "final_info": fi2,
+        "is_success": np.array([False, True, False], dtype=bool),
+        "_is_success": np.array([True, True, True], dtype=bool),
+    }
+    check("masked final_info -> top-level False", read_success(info2, 0), False)
+
+    # 3) final_info dict WITHOUT per-key masks falls back to the outer mask.
+    fi3 = {"is_success": np.array([True, True, True], dtype=bool)}
+    info3 = {
+        "final_info": fi3,
+        "_final_info": np.array([False, True, False], dtype=bool),
+        "is_success": np.array([False, True, False], dtype=bool),
+    }
+    check("dict w/o nested mask uses outer mask", read_success(info3, 1), True)
+
+    # 4) list-of-dicts final_info with outer mask.
+    info4 = {
+        "final_info": [None, {"is_success": True}, None],
+        "_final_info": np.array([False, True, False], dtype=bool),
+    }
+    check("list-of-dicts final_info", read_success(info4, 1), True)
+    check(
+        "list-of-dicts source",
+        read_success_with_source(info4, 1),
+        (True, "final_info-list"),
+    )
+    check("list-of-dicts masked -> None", read_success(info4, 0), None)
+
+    # 5) legacy {env_index: terminal_info} dict.
+    info5 = {"final_info": {1: {"is_success": True}}}
+    check("legacy env-index dict", read_success(info5, 1), True)
+    check(
+        "legacy source",
+        read_success_with_source(info5, 1),
+        (True, "final_info-legacy"),
+    )
+
+    # 6) top-level array only (no final_info key at all).
+    info6 = {"is_success": [False, True, False], "_is_success": [True, True, True]}
+    check("top-level array only", read_success(info6, 1), True)
+    check(
+        "top-level source",
+        read_success_with_source(info6, 1),
+        (True, "top-level"),
+    )
+    info6b = {"is_success": [False, True, False], "_is_success": [True, True, False]}
+    check("top-level array masked -> None", read_success(info6b, 2), None)
+
+    # 7) numpy scalars as produced by _add_info's bool arrays.
+    fi7 = per_key([False, True], [False, True], [True, True])
+    info7 = {
+        "final_info": fi7,
+        "_final_info": np.array([False, True], dtype=bool),
+    }
+    check("np bool scalars", read_success(info7, 1), True)
+
+    # 8) nothing usable -> None; malformed inputs -> None; out-of-range k.
+    check("empty info -> None", read_success({}, 0), None)
+    check("non-dict info -> None", read_success(None, 0), None)
+    check("list info -> None", read_success([1, 2], 0), None)
+    check("out-of-range k -> None", read_success(info6, 9), None)
+
+    if failures:
+        print("SELFTEST FAILED:")
+        for failure in failures:
+            print("  - " + failure)
+        return 1
+    print("SELFTEST PASSED")
+    return 0
+
+
+def atomic_write_json(path, value, *, indent=None):
+    """Atomically replace ``path`` with JSON encoded ``value``."""
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        with open(tmp, "w") as f:
+            json.dump(value, f, indent=indent)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def git_revision():
+    """Return HEAD, or a digest-qualified revision when tracked files are dirty."""
+    import subprocess
+
+    root = Path(__file__).resolve().parent.parent
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            cwd=root,
+            timeout=5,
+        )
+    except Exception:
+        return ""
+    if out.returncode != 0:
+        return ""
+    revision = out.stdout.strip()
+    diff = subprocess.run(
+        ["git", "diff", "--binary", "HEAD", "--"],
+        capture_output=True,
+        cwd=root,
+        timeout=10,
+    )
+    if diff.returncode != 0 or not diff.stdout:
+        return revision
+    digest = hashlib.sha256(diff.stdout).hexdigest()[:16]
+    return f"{revision}-dirty-{digest}"
+
+
+def policy_cache_sha256(policy_id):
+    """Best-effort SHA-256 of the locally cached policy snapshot.
+
+    Returns None when the snapshot is unavailable; callers must fail closed.
+    """
+    try:
+        from huggingface_hub import snapshot_download
+
+        local_path = Path(policy_id)
+        snap = local_path if local_path.is_dir() else Path(snapshot_download(policy_id, local_files_only=True))
+    except Exception:
+        return None
+    digest = hashlib.sha256()
+    try:
+        for root, dirs, files in os.walk(snap):
+            dirs.sort()
+            for name in sorted(files):
+                path = os.path.join(root, name)
+                digest.update(os.path.relpath(path, snap).encode("utf-8", "replace"))
+                with open(path, "rb") as f:
+                    for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                        digest.update(chunk)
+    except OSError:
+        return None
+    return digest.hexdigest()
+
+
+def init_state_count(raw_env):
+    """Return the number of reset states available for this task."""
+    states = getattr(raw_env, "_init_states", None)
+    try:
+        count = int(states.shape[0]) if states is not None else DEFAULT_INIT_STATE_COUNT
+    except (AttributeError, IndexError, TypeError, ValueError):
+        count = DEFAULT_INIT_STATE_COUNT
+    if count < 1:
+        raise RuntimeError("LIBERO environment exposes no init states")
+    return count
+
+
+def episode_id(episode_offset, pair, env_ix, n_envs):
+    """Return the globally stable episode ID for a batched rollout slot."""
+    if episode_offset < 0 or pair < 0 or env_ix < 0 or n_envs < 1:
+        raise ValueError("episode offset, pair, env_ix must be non-negative; n_envs must be positive")
+    if env_ix >= n_envs:
+        raise ValueError("env_ix must be less than n_envs")
+    return int(episode_offset) + int(pair) * int(n_envs) + int(env_ix)
+
+
+def init_state_id_for_episode(episode_offset, pair, env_ix, n_envs, count):
+    """Map a global episode ID into the task's actual init-state range."""
+    if count < 1:
+        raise ValueError("init-state count must be positive")
+    return episode_id(episode_offset, pair, env_ix, n_envs) % int(count)
+
+
+def resolve_init_state_index(raw_env, init_state_id):
+    """Actual index into the task init-state tensor used for a pinned id.
+
+    Pinned LiberoEnv.reset() indexes with ``init_state_id % len(_init_states)``;
+    record that actual index so episodes are fully reproducible.
+    """
+    return int(init_state_id) % init_state_count(raw_env)
+
+
+def ensure_manifest(path, expected, artifact_paths=()):
+    """Create an immutable manifest, or validate an existing one exactly."""
+    if path.exists():
+        if "policy_sha256" in expected and expected["policy_sha256"] is None:
+            raise RuntimeError("refusing to validate a manifest without a policy digest")
+        with open(path) as f:
+            current = json.load(f)
+        for key, value in expected.items():
+            if current.get(key) != value:
+                raise RuntimeError(
+                    f"run manifest mismatch for {key!r} in {path}; use a new --out directory"
+                )
+        return current
+    if any(artifact.exists() for artifact in artifact_paths):
+        raise RuntimeError(
+            f"refusing unprovenanced rollout artifacts without {path}; use a new --out directory"
+        )
+    manifest = dict(expected)
+    manifest.setdefault("run_id", uuid.uuid4().hex)
+    manifest["created_unix"] = time.time()
+    atomic_write_json(path, manifest, indent=2)
+    return manifest
+
+
+def load_reusable_episode(path, provenance, expected):
+    """Return a validated episode, or None so its entire pair is regenerated."""
+    try:
+        with open(path) as f:
+            episode = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if episode.get("provenance") != provenance:
+        return None
+    for key, value in expected.items():
+        if episode.get(key) != value:
+            return None
+    if (
+        not isinstance(episode.get("steps"), list)
+        or "rollout_seconds" not in episode
+        or not isinstance(episode.get("success_source"), str)
+    ):
+        return None
+    return episode
+
+
+def write_task_metrics(out_dir, key, task_manifest, metrics):
+    """Persist task metrics and rebuild the validated cross-task aggregate."""
+    import fcntl
+
+    task_out = out_dir / key
+    payload = {
+        "harness_schema_version": HARNESS_SCHEMA_VERSION,
+        "run_id": task_manifest["run_id"],
+        "task": key,
+        "metrics": metrics,
+    }
+    atomic_write_json(task_out / "metrics.json", payload, indent=2)
+
+    with open(out_dir / ".metrics.lock", "a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        aggregate = {}
+        for path in sorted(out_dir.glob("*/metrics.json")):
+            manifest_path = path.parent / "run_manifest.json"
+            if not manifest_path.exists():
+                continue
+            try:
+                with open(path) as f:
+                    candidate = json.load(f)
+                with open(manifest_path) as f:
+                    manifest = json.load(f)
+            except (OSError, json.JSONDecodeError):
+                continue
+            if (
+                candidate.get("harness_schema_version") != HARNESS_SCHEMA_VERSION
+                or candidate.get("run_id") != task_manifest["run_id"]
+                or manifest.get("run_id") != task_manifest["run_id"]
+                or candidate.get("task") != path.parent.name
+                or not isinstance(candidate.get("metrics"), dict)
+            ):
+                continue
+            aggregate[candidate["task"]] = candidate["metrics"]
+        atomic_write_json(out_dir / "metrics.json", aggregate, indent=2)
+
+
+def resolve_geom_names(sim, geom_ids):
+    return [authoritative_geom_name(sim.model, geom_id) for geom_id in geom_ids]
+
+
+def init_telemetry_system(sim):
+    """Enable contact forces + applied external forces at runtime if disabled."""
+    import mujoco
+
+    disable = sim.model.opt.disableflags
+    # mjDSBL_CONTACT disables contact force computation (efc_force stays zero).
+    if disable & mujoco.mjtDisableBit.mjDSBL_CONTACT:
+        sim.model.opt.disableflags = disable & ~mujoco.mjtDisableBit.mjDSBL_CONTACT
+    # mjDSBL_WARMSTART not needed; just contact.
+    # Persistent applied forces (xfrc_applied) get cleared only if
+    # mjDSBL_PASSIVE... not related. Keep default; flags only affect forces.
+    return sim
+
+
+def classify_body(name, has_free_joint):
+    """Classify a MuJoCo body consistently for calibration and telemetry."""
+    if name.startswith(("robot0", "gripper0")) or name.endswith("eef"):
+        return "robot"
+    if name in ("table", "floor", "world", "collision") or name.startswith("wall"):
+        return "static"
+    return "object" if has_free_joint else "static"
+
+
+def make_body_table(sim):
+    """Return {body_id: cls} for all bodies. Topology/classes are static per task."""
+    m = sim.model
+    free_joint_body = set()
+    for j in range(m.njnt):
+        if m.jnt_type[j] == 0:  # mjJNT_FREE
+            free_joint_body.add(int(m.jnt_bodyid[j]))
+    table = {}
+    for b in range(m.nbody):
+        name_s = authoritative_body_name(m, b)
+        table[b] = (classify_body(name_s, b in free_joint_body), name_s)
+    return table
+
+
+@lru_cache(maxsize=1)
+def _support_plane_deriver():
+    """Load the calibration support-plane implementation once per process."""
+    path = Path(__file__).with_name("calibrate.py")
+    spec = importlib.util.spec_from_file_location("probearch_calibrate_support", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load support-plane helper from {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.derive_support_plane
+
+
+def get_support_planes(sim, table):
+    """Return geometry-top support heights for every object in a scene."""
+    derive_support_plane = _support_plane_deriver()
+
+    planes = {}
+    for body_id, (body_class, body_name) in table.items():
+        if body_class != "object":
+            continue
+        try:
+            support = derive_support_plane(sim, table, body_id)
+        except RuntimeError:
+            continue
+        planes[body_name] = float(support["z"])
+    return planes
+
+
+def common_support_plane_z(support_planes):
+    """Return one shared support height, or None when object supports differ."""
+    values = list(support_planes.values())
+    if not values:
+        return None
+    first = values[0]
+    return first if all(math.isclose(value, first, abs_tol=1e-6) for value in values[1:]) else None
+
+
+def contact_force_torque(sim, contact_id, _wrench=None):
+    """Return translational force (N) and torque (N m) for one contact."""
+    import mujoco
+
+    # robosuite's MjModel/MjData wrap the raw mujoco structs; pybind
+    # mj_contactForce requires the raw objects.
+    model = getattr(sim.model, "_model", sim.model)
+    data = getattr(sim.data, "_data", sim.data)
+    wrench = _wrench if _wrench is not None else np.zeros((6, 1), dtype=np.float64, order="C")
+    # Ensure (6,1) shape for mujoco binding; reuse buffer when provided
+    if wrench.shape != (6, 1):
+        wrench = np.zeros((6, 1), dtype=np.float64, order="C")
+    mujoco.mj_contactForce(model, data, contact_id, wrench)
+    # Scalar norm avoids np.linalg.norm dispatch on 3-vectors (hot loop)
+    fx, fy, fz = float(wrench[0, 0]), float(wrench[1, 0]), float(wrench[2, 0])
+    tx, ty, tz = float(wrench[3, 0]), float(wrench[4, 0]), float(wrench[5, 0])
+    return math.sqrt(fx*fx + fy*fy + fz*fz), math.sqrt(tx*tx + ty*ty + tz*tz)
+
+
+def collect_telemetry(sim, step, table, action_prev=None):
+    """Return compact telemetry record for one step (state AFTER action_prev)."""
+    m, d = sim.model, sim.data
+    rec = {
+        "t": step,
+        "contacts": [],
+        "contact_details": [],
+        "bodies": {},
+        "eef": None,
+    }
+    if action_prev is not None:
+        rec["action_prev"] = [float(v) for v in action_prev]
+    entries = []
+    wrench_buf = np.zeros((6, 1), dtype=np.float64, order="C")
+    for i in range(d.ncon):
+        force_n, torque_nm = contact_force_torque(sim, i, _wrench=wrench_buf)
+        if force_n <= 1e-4:
+            continue
+        b1 = int(m.geom_bodyid[d.contact.geom1[i]])
+        b2 = int(m.geom_bodyid[d.contact.geom2[i]])
+        if b1 == b2:
+            continue
+        cls1, n1 = table[b1]
+        cls2, n2 = table[b2]
+        entries.append((force_n, torque_nm, cls1, cls2, n1, n2))
+    entries.sort(key=lambda entry: entry[0], reverse=True)
+    # R1-eligible contacts (robot-object / object-object, i.e. at least one
+    # "object" body) are NEVER evicted by the top-40 truncation: keep them all
+    # (bounded by MAX_R1_CONTACTS, far above any realistic per-step count) and
+    # fill the remaining budget with the strongest other contacts.
+    r1_eligible = [e for e in entries if "object" in (e[2], e[3])]
+    other = [e for e in entries if "object" not in (e[2], e[3])]
+    selected = r1_eligible[:MAX_R1_CONTACTS]
+    if len(selected) < MAX_CONTACTS:
+        selected += other[: MAX_CONTACTS - len(selected)]
+    rec["n_contacts_total"] = len(entries)
+    rec["n_contacts_recorded"] = len(selected)
+    for force_n, torque_nm, cls1, cls2, n1, n2 in selected:
+        # Keep the legacy tuple for existing analysis scripts while recording
+        # authoritative classes and units in the versioned contact schema.
+        rec["contacts"].append([n1, n2, force_n])
+        rec["contact_details"].append(
+            {
+                "body1": n1,
+                "class1": cls1,
+                "body2": n2,
+                "class2": cls2,
+                "force_N": force_n,
+                "torque_Nm": torque_nm,
+            }
+        )
+    for b, (cls, name) in table.items():
+        if cls == "object":
+            rec["bodies"][name] = [d.xpos[b].tolist(), d.xquat[b].tolist()]
+        elif name.endswith("eef") and rec["eef"] is None:
+            rec["eef"] = d.xpos[b].tolist()
+    if rec["eef"] is None:
+        rec["eef"] = []
+    return rec
+
+
+def step_with_terminal_telemetry(vec, action, step, table, live_envs):
+    """Capture each terminating LIBERO sim immediately before its internal reset."""
+    snapshots = [None] * len(vec.envs)
+    original_resets = []
+    for k, env in enumerate(vec.envs):
+        original_reset = env.reset
+        original_resets.append(original_reset)
+        if not live_envs[k]:
+            continue
+
+        def capture_then_reset(*args, _env=env, _k=k, _reset=original_reset, **kwargs):
+            if snapshots[_k] is None:
+                snapshots[_k] = collect_telemetry(
+                    _env._env.sim, step + 1, table, action[_k]
+                )
+            return _reset(*args, **kwargs)
+
+        env.reset = capture_then_reset
+    try:
+        result = vec.step(action)
+    finally:
+        for env, original_reset in zip(vec.envs, original_resets, strict=True):
+            env.reset = original_reset
+    return result, snapshots
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--suite", default="libero_spatial")
+    ap.add_argument("--task_ids", nargs="+", type=int, default=None)
+    ap.add_argument("--policy", default="HuggingFaceVLA/smolvla_libero")
+    ap.add_argument(
+        "--out",
+        default=str(Path(os.environ.get("AUDIT_DIR", str(Path.home() / "audit"))) / "rollouts"),
+    )
+    ap.add_argument("--device", default="cuda", choices=POLICY_BACKENDS,
+                    help="policy backend: cuda (LeRobot/torch, default) or mlx (Apple Silicon)")
+    ap.add_argument("--resolution", type=int, default=360)
+    ap.add_argument("--max_steps", type=int, default=None)
+    ap.add_argument("--n_envs", type=int, default=1)
+    ap.add_argument("--n_pairs", type=int, default=10)
+    ap.add_argument(
+        "--num_steps",
+        type=int,
+        default=1,
+        help="policy inference diffusion steps; empirically validated audit default is 1",
+    )
+    ap.add_argument(
+        "--n_action_steps",
+        type=int,
+        default=1,
+        help="policy action horizon; baseline is 1",
+    )
+    ap.add_argument(
+        "--episode_offset",
+        type=int,
+        default=0,
+        help="global episode ID offset for deterministic init-state/reset-seed sampling",
+    )
+    ap.add_argument(
+        "--selftest",
+        action="store_true",
+        help="run synthetic read_success unit tests (no gymnasium/lerobot) and exit",
+    )
+    args = ap.parse_args()
+    if args.episode_offset < 0:
+        ap.error("--episode_offset must be non-negative")
+    if args.n_envs < 1:
+        ap.error("--n_envs must be positive")
+    if args.n_pairs < 1:
+        ap.error("--n_pairs must be positive")
+    if args.n_action_steps < 1:
+        ap.error("--n_action_steps must be positive")
+    if args.num_steps < 1:
+        ap.error("--num_steps must be positive")
+    if args.selftest:
+        sys.exit(run_selftest())
+    if not args.task_ids:
+        ap.error("--task_ids is required (or pass --selftest)")
+    try:
+        valid_task_ids = suite_task_ids(args.suite)
+    except ValueError as exc:
+        ap.error(str(exc))
+    if any(task_id not in valid_task_ids for task_id in args.task_ids):
+        ap.error(f"task_ids for {args.suite} must be within {list(valid_task_ids)}")
+
+    from lerobot.envs.configs import LiberoEnv
+    from lerobot.envs.factory import make_env, make_env_pre_post_processors
+    from lerobot.envs.utils import add_envs_task, close_envs, preprocess_observation
+    from lerobot.utils.random_utils import set_seed
+
+    set_seed(1000)
+    use_mlx = args.device == "mlx"
+    policy_runtime_config = {}
+    if use_mlx:
+        try:
+            from mlx_smolvla import HARNESS_NAME as MLX_HARNESS_NAME
+            from mlx_smolvla import load_policy as load_mlx_policy
+            from mlx_smolvla import observation_from_lerobot
+        except ImportError:
+            # The MLX adapter is a sibling backend, not a top-level module.
+            import importlib.util as _ilu
+            _mlx_path = Path(__file__).resolve().parent.parent / "mlx" / "mlx_smolvla.py"
+            if not _mlx_path.is_file():
+                raise RuntimeError(f"could not locate MLX adapter at {_mlx_path}")
+            _spec = _ilu.spec_from_file_location("mlx_smolvla", _mlx_path)
+            _mod = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(_mod)  # type: ignore
+            MLX_HARNESS_NAME = _mod.HARNESS_NAME
+            load_mlx_policy = _mod.load_policy
+            observation_from_lerobot = _mod.observation_from_lerobot
+
+        torch = None
+        policy_cfg = None
+        preprocessor = None
+        postprocessor = None
+        env_preprocessor = None
+        env_postprocessor = None
+    else:
+        import torch
+        from lerobot.configs.policies import PreTrainedConfig
+        from lerobot.policies.factory import make_policy, make_pre_post_processors
+        from lerobot.utils.utils import get_safe_torch_device
+
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "CUDA backend requested but torch.cuda.is_available() is false; "
+                "refusing to run a CPU fallback under a CUDA audit"
+            )
+        get_safe_torch_device(args.device, log=True)
+
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    audit_dir = Path(os.environ.get("AUDIT_DIR", str(out_dir.parent)))
+    task_profile = audit_dir / "calibration" / f"{args.suite}_{args.task_ids[0]}.json"
+    calibration_path = task_profile if task_profile.is_file() else audit_dir / "calibration.json"
+    if not calibration_path.is_file():
+        raise RuntimeError(f"calibration file is required: {calibration_path}")
+    with calibration_path.open() as calibration_file:
+        calibration_metadata = json.load(calibration_file)
+    calibration_suite = calibration_metadata.get("calibration_suite")
+    if calibration_suite != args.suite:
+        raise RuntimeError(
+            f"calibration suite mismatch: requested {args.suite!r}, "
+            f"but calibration was generated for {calibration_suite!r}; "
+            "run calibrate.py for this suite before rollout"
+        )
+    calibration_task_id = calibration_metadata.get("calibration_task_id")
+    if len(args.task_ids) == 1 and calibration_task_id != args.task_ids[0]:
+        raise RuntimeError(
+            f"calibration task mismatch: requested {args.task_ids[0]!r}, "
+            f"but calibration was generated for task {calibration_task_id!r}"
+        )
+    env_cfg = LiberoEnv(
+        task=args.suite,
+        task_ids=list(args.task_ids),
+        observation_height=args.resolution,
+        observation_width=args.resolution,
+        control_mode="relative",
+    )
+    # Match stock LeRobot evaluation order: construct the environments before
+    # constructing the policy. SmolVLA action sampling is stochastic, so
+    # changing initialization order can change the RNG stream and trajectory.
+    envs = make_env(env_cfg, n_envs=args.n_envs, use_async_envs=False)
+    if use_mlx:
+        policy = load_mlx_policy(args.policy, backend="mlx")
+        print(
+            f"policy loaded: SmolVLAMLX backend={policy.backend_name} "
+            f"id={args.policy} dir={policy.policy_dir}"
+        )
+    else:
+        policy_cfg = PreTrainedConfig.from_pretrained(args.policy)
+        # PreTrainedConfig.from_pretrained() loads the configuration schema but
+        # does not necessarily retain the source identifier used by
+        # make_policy(). Set it explicitly or LeRobot will instantiate a random
+        # policy from scratch while the manifest still records the checkpoint
+        # hash, producing a silently invalid audit.
+        policy_cfg.pretrained_path = args.policy
+        # Follow the empirically validated target-runtime setting while
+        # keeping the local Python/LeRobot/MuJoCo pins documented in pins.md.
+        # These overrides are audit-critical: silently falling back to a
+        # different inference schedule can materially change success rate.
+        sub = getattr(policy_cfg, "policy", policy_cfg)
+        requested_policy_config = {
+            "n_action_steps": args.n_action_steps,
+            "num_steps": args.num_steps,
+            "use_amp": False,
+        }
+        missing_policy_fields = []
+        for key, value in requested_policy_config.items():
+            if hasattr(sub, key):
+                setattr(sub, key, value)
+            elif hasattr(policy_cfg, key):
+                setattr(policy_cfg, key, value)
+            else:
+                missing_policy_fields.append(key)
+        if missing_policy_fields:
+            raise RuntimeError(
+                "policy configuration does not expose required evaluation fields: "
+                + ", ".join(missing_policy_fields)
+            )
+        policy = make_policy(cfg=policy_cfg, env_cfg=env_cfg, rename_map={})
+        policy.eval()
+        for key, expected in requested_policy_config.items():
+            actual = getattr(policy.config, key, None)
+            if actual != expected:
+                raise RuntimeError(
+                    f"policy override did not take effect for {key}: "
+                    f"expected {expected!r}, got {actual!r}"
+                )
+        policy_runtime_config = {
+            key: getattr(policy.config, key) for key in requested_policy_config
+        }
+        print(f"policy runtime config: {policy_runtime_config}", flush=True)
+        try:
+            n_params = sum(p.numel() for p in policy.parameters())
+            print(
+                f"policy loaded: {type(policy).__name__} params={n_params/1e6:.1f}M "
+                f"device={next(policy.parameters()).device}"
+            )
+        except Exception as e:
+            print(f"policy loaded (param count unavailable: {e})")
+
+        preprocessor_overrides = {
+            "device_processor": {"device": str(policy.config.device)},
+            "rename_observations_processor": {"rename_map": {}},
+        }
+        preprocessor, postprocessor = make_pre_post_processors(
+            policy_cfg=policy_cfg,
+            pretrained_path=policy_cfg.pretrained_path,
+            preprocessor_overrides=preprocessor_overrides,
+        )
+        env_preprocessor, env_postprocessor = make_env_pre_post_processors(
+            env_cfg=env_cfg, policy_cfg=policy_cfg
+        )
+    policy_digest = policy_cache_sha256(args.policy)
+    if policy_digest is None:
+        raise RuntimeError(f"could not establish a policy digest for {args.policy!r}")
+    lerobot_git_revision = None
+    try:
+        import lerobot
+
+        lerobot_root = Path(lerobot.__file__).resolve().parents[2]
+        revision = subprocess.run(
+            ["git", "-C", str(lerobot_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        lerobot_git_revision = revision.stdout.strip()
+    except Exception:
+        pass
+    runtime_provenance = {
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "mujoco": importlib.metadata.version("mujoco"),
+        "gymnasium": importlib.metadata.version("gymnasium"),
+        "lerobot": importlib.metadata.version("lerobot"),
+        "lerobot_git_revision": lerobot_git_revision,
+        "mujoco_gl": os.environ.get("MUJOCO_GL"),
+        "policy_runtime_config": policy_runtime_config,
+    }
+    if not use_mlx:
+        runtime_provenance.update(
+            {
+                "torch": torch.__version__,
+                "torch_cuda": torch.version.cuda,
+                "cuda_available": bool(torch.cuda.is_available()),
+                "cuda_device": torch.cuda.get_device_name(0)
+                if torch.cuda.is_available()
+                else None,
+            }
+        )
+    calibration_index = audit_dir / "calibration" / "index.json"
+    calibration_digest_path = calibration_index if calibration_index.is_file() else calibration_path
+    root_expected = {
+        "harness_schema_version": HARNESS_SCHEMA_VERSION,
+        "git_revision": git_revision(),
+        "policy": args.policy,
+        "policy_sha256": policy_digest,
+        "policy_backend": args.device,
+        "suite": args.suite,
+        "task_ids": list(valid_task_ids),
+        "resolution": [args.resolution, args.resolution],
+        "max_steps_requested": args.max_steps,
+        "n_envs": args.n_envs,
+        "n_pairs": args.n_pairs,
+        "num_steps": args.num_steps,
+        "episode_offset": args.episode_offset,
+        "calibration_sha256": file_sha256(calibration_digest_path),
+        "runtime": runtime_provenance,
+    }
+    if use_mlx:
+        root_expected["policy_runtime"] = MLX_HARNESS_NAME
+    legacy_artifacts = list(out_dir.glob("*/ep_*.json")) + [out_dir / "metrics.json"]
+    root_manifest = ensure_manifest(
+        out_dir / "run_manifest.json", root_expected, legacy_artifacts
+    )
+
+    try:
+        for task_id in args.task_ids:
+            key = f"{args.suite}_{task_id}"
+            vec = envs[args.suite][task_id]
+            raw_env = vec.envs[0]
+            print(f"task {key}: language='{raw_env.task_description}'", flush=True)
+            for env in vec.envs:
+                init_telemetry_system(env._env.sim)
+            table = make_body_table(raw_env._env.sim)
+            task_init_state_count = init_state_count(raw_env)
+            task_out = out_dir / key
+            task_out.mkdir(parents=True, exist_ok=True)
+
+            N = args.n_envs
+            n_episodes = N * args.n_pairs
+            max_steps = args.max_steps or raw_env._max_episode_steps
+            provenance = {
+                "harness_schema_version": HARNESS_SCHEMA_VERSION,
+                "run_id": root_manifest["run_id"],
+                "policy": args.policy,
+                "suite": args.suite,
+                "task": key,
+                "task_id": task_id,
+                "resolution": [args.resolution, args.resolution],
+                "max_steps": max_steps,
+                "n_envs": N,
+                "n_pairs": args.n_pairs,
+                "num_steps": args.num_steps,
+                "episode_offset": args.episode_offset,
+                "init_state_count": task_init_state_count,
+                "calibration_sha256": file_sha256(
+                    audit_dir / "calibration" / f"{args.suite}_{task_id}.json"
+                )
+                if (audit_dir / "calibration" / f"{args.suite}_{task_id}.json").is_file()
+                else root_manifest["calibration_sha256"],
+                "policy_sha256": root_manifest["policy_sha256"],
+                "policy_backend": args.device,
+            }
+            if use_mlx:
+                provenance["policy_runtime"] = MLX_HARNESS_NAME
+            task_manifest = ensure_manifest(
+                task_out / "run_manifest.json",
+                provenance,
+                list(task_out.glob("ep_*.json")) + [task_out / "metrics.json"],
+            )
+            invocation_t0 = time.time()
+            successes = []
+            episode_seconds = []
+            executed_episodes = 0
+            for pair in range(args.n_pairs):
+                episode_paths = [
+                    task_out / f"ep_{episode_id(args.episode_offset, pair, k, N):03d}.json"
+                    for k in range(N)
+                ]
+                reusable = []
+                for k, path in enumerate(episode_paths):
+                    ep = episode_id(args.episode_offset, pair, k, N)
+                    reusable.append(
+                        load_reusable_episode(
+                            path,
+                            provenance,
+                            {
+                                "task": key,
+                                "task_id": task_id,
+                                "env_ix": k,
+                                "pair": pair,
+                                "ep_ix": ep,
+                                "init_state_id": init_state_id_for_episode(
+                                    args.episode_offset, pair, k, N, task_init_state_count
+                                ),
+                                "init_state_count": task_init_state_count,
+                                "max_steps": max_steps,
+                            },
+                        )
+                    )
+                if all(episode is not None for episode in reusable):
+                    successes.extend(bool(episode["success"]) for episode in reusable)
+                    episode_seconds.extend(float(episode["rollout_seconds"]) for episode in reusable)
+                    continue
+
+                # Explicit per-episode init-state pinning. The task-specific
+                # tensor length is used instead of assuming every task has 32
+                # states. Pinned LiberoEnv.step() self-resets on termination AND
+                # gymnasium NEXT_STEP autoresets at the next vec.step, both
+                # advancing the implicit counter; re-pinning here makes the id
+                # used immune to those internal advances.
+                init_ids = [
+                    init_state_id_for_episode(
+                        args.episode_offset, pair, k, N, task_init_state_count
+                    )
+                    for k in range(N)
+                ]
+                # Match stock LeRobot evaluation: seed each reset with the
+                # same deterministic per-episode schedule. Pinning the LIBERO
+                # snapshot alone does not pin all environment randomness.
+                reset_seeds = [
+                    1000 + episode_id(args.episode_offset, pair, k, N)
+                    for k in range(N)
+                ]
+                for k, env in enumerate(vec.envs):
+                    # Internal and vector autoresets may advance this counter, but
+                    # every audited reset is explicitly pinned to its episode ID.
+                    env.init_state_id = init_ids[k]
+                policy.reset()
+                pair_t0 = time.time()
+                obs, _ = vec.reset(seed=reset_seeds)
+                episode_support_planes = [
+                    get_support_planes(vec.envs[k]._env.sim, table) for k in range(N)
+                ]
+                episode_support_z = [
+                    common_support_plane_z(planes) for planes in episode_support_planes
+                ]
+                ep_steps = [[] for _ in range(N)]
+                step = 0
+                done_arr = [False] * N
+                last_action = [None] * N
+                success = [False] * N
+                success_source = ["none"] * N
+                done_step = [None] * N
+                terminal_action = [None] * N
+                info = {}
+                while not all(done_arr) and step < max_steps:
+                    obs = preprocess_observation(obs)
+                    obs = add_envs_task(vec, obs)
+                    if use_mlx:
+                        policy_observation = observation_from_lerobot(obs)
+                        action_np = np.asarray(policy.select_action(policy_observation), dtype=np.float32)
+                    else:
+                        obs = env_preprocessor(obs)
+                        obs = preprocessor(obs)
+                        with torch.inference_mode():
+                            action = policy.select_action(obs)
+                        action = postprocessor(action)
+                        action_transition = env_postprocessor({"action": action})
+                        action_np = action_transition["action"].to("cpu").numpy()
+                    for k in range(N):
+                        if not done_arr[k]:
+                            sim = vec.envs[k]._env.sim
+                            ep_steps[k].append(collect_telemetry(sim, step, table, last_action[k]))
+                    (obs, reward, terminated, truncated, info), terminal_steps = (
+                        step_with_terminal_telemetry(vec, action_np, step, table, [not d for d in done_arr])
+                    )
+                    for k in range(N):
+                        if done_arr[k]:
+                            continue
+                        last_action[k] = action_np[k]
+                        if bool(terminated[k]) or bool(truncated[k]):
+                            if terminal_steps[k] is None:
+                                raise RuntimeError(
+                                    f"terminal telemetry interception failed for {key} env {k}"
+                                )
+                            ep_steps[k].append(terminal_steps[k])
+                            done_arr[k] = True
+                            done_step[k] = step + 1
+                            terminal_action[k] = [float(v) for v in action_np[k]]
+                            value, source = read_success_with_source(info, k)
+                            success_source[k] = source
+                            if value is not None:
+                                success[k] = value
+                    step += 1
+                for k in range(N):
+                    if not done_arr[k]:
+                        sim = vec.envs[k]._env.sim
+                        ep_steps[k].append(collect_telemetry(sim, step, table, last_action[k]))
+                        value, source = read_success_with_source(info, k)
+                        success_source[k] = source
+                        if value is not None:
+                            success[k] = value
+
+                pair_seconds_per_episode = (time.time() - pair_t0) / N
+                successes.extend(success)
+                episode_seconds.extend([pair_seconds_per_episode] * N)
+                executed_episodes += N
+                for k in range(N):
+                    ep = episode_id(args.episode_offset, pair, k, N)
+                    record = {
+                        "provenance": provenance,
+                        "task": key,
+                        "task_language": raw_env.task_description,
+                        "task_id": task_id,
+                        "env_ix": k,
+                        "pair": pair,
+                        "ep_ix": ep,
+                        "init_state_id": init_ids[k],
+                        "init_state_count": task_init_state_count,
+                        "episode_offset": args.episode_offset,
+                        "init_state_index": resolve_init_state_index(
+                            raw_env, init_ids[k]
+                        ),
+                        "terminal_action": terminal_action[k],
+                        "success": success[k],
+                        "success_source": success_source[k],
+                        "n_steps": done_step[k] if done_step[k] is not None else max_steps,
+                        "max_steps": max_steps,
+                        "rollout_seconds": pair_seconds_per_episode,
+                        "body_classes": {name: cls for cls, name in table.values()},
+                        "initial_orientation_baseline": "per_episode",
+                        "steps": ep_steps[k],
+                    }
+                    support_plane_z = episode_support_z[k]
+                    support_planes = episode_support_planes[k]
+                    if support_plane_z is not None:
+                        record["support_plane_z"] = support_plane_z
+                    if support_planes:
+                        record["support_planes"] = support_planes
+                    atomic_write_json(task_out / f"ep_{ep:03d}.json", record)
+                if (pair + 1) % 5 == 0 or any(success):
+                    print(
+                        f"  pair {pair:02d} steps={step:3d} succ={[int(s) for s in success]} "
+                        f"({pair_seconds_per_episode:.1f}s/ep)",
+                        flush=True,
+                    )
+            if n_episodes == 0:
+                raise ValueError(
+                    f"refusing empty metrics: n_envs={N} * n_pairs={args.n_pairs} == 0"
+                )
+            total_seconds = float(sum(episode_seconds))
+            sr = 100.0 * np.mean(successes)
+            metrics = {
+                "n_episodes": n_episodes,
+                "successes": int(sum(successes)),
+                "pc_success": sr,
+                "seconds_total": total_seconds,
+                "seconds_per_episode": total_seconds / n_episodes,
+                "executed_episodes_this_invocation": executed_episodes,
+                "resumed_episodes_this_invocation": n_episodes - executed_episodes,
+                "invocation_seconds": time.time() - invocation_t0,
+            }
+            write_task_metrics(out_dir, key, task_manifest, metrics)
+            print(
+                f"{key}: SR={sr:.1f}% ({sum(successes)}/{n_episodes}), "
+                f"{total_seconds/n_episodes:.1f}s/ep",
+                flush=True,
+            )
+    finally:
+        close_envs(envs)
+
+
+if __name__ == "__main__":
+    main()
