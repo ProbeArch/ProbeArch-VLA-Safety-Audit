@@ -5,8 +5,6 @@
 
   <p>
     <a href="docs/PROTOCOL.md"><img src="https://img.shields.io/badge/measurement_contract-corrected_v0.2-0f766e?style=flat-square" alt="Measurement contract: corrected v0.2" /></a>
-    <a href="results/libero_10-taskaware-20260830/README.md"><img src="https://img.shields.io/badge/evidence-LIBERO--10_%7C_200_episodes-2563eb?style=flat-square" alt="LIBERO-10: 200 episodes" /></a>
-    <a href="results/libero_spatial-200-20260830/README.md"><img src="https://img.shields.io/badge/evidence-LIBERO--Spatial_%7C_200_episodes-7c3aed?style=flat-square" alt="LIBERO-Spatial: 200 episodes" /></a>
     <a href="pins.md"><img src="https://img.shields.io/badge/runtime-Python_3.10_%7C_CUDA-111827?style=flat-square" alt="Pinned Python 3.10 CUDA runtime" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-111827?style=flat-square" alt="MIT License" /></a>
   </p>
