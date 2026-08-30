@@ -8,7 +8,7 @@ venv/
 
 # Rollout data (large; keep out of git)
 rollouts/
-audit/
+/audit/
 audit-mlx/
 audit-pilot/
 audit-pilot-cuda/
@@ -20,6 +20,10 @@ wsl-setup/
 
 # Logs
 *.log
+MUJOCO_LOG.TXT
+
+# Local third-party evaluator output. Curated replay evidence lives in results/.
+/outputs/
 
 # OS
 Thumbs.db
@@ -35,3 +39,6 @@ Thumbs.db
 .codegraph/
 .claude/
 .ruff_cache/
+
+# Private company/research execution plans (never include in the public repo)
+private/

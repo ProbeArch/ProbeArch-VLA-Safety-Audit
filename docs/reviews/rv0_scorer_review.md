@@ -1,9 +1,9 @@
 # Re-review rv_0 (scorer cluster) — adversarial review of the C1–C6 + follow-up fix round
 
 Reviewer: rv_0_scorer (fresh context, no prior assumptions)
-Scope: `scripts/_backend_map/shared/safety_scorer.py` (core), producers `scripts/_backend_map/shared/telemetry_rollout.py`,
-`scripts/_backend_map/shared/calibrate.py`, consumers `scripts/_backend_map/shared/stats.py`, `scripts/_backend_map/shared/plots.py`,
-`scripts/_backend_map/shared/smoke_test.py`, `scripts/_backend_map/shared/eval_loop.sh`, docs (HANDOFF/amendments/PROTOCOL/REPORT/README).
+Scope: `scripts/audit/shared/safety_scorer.py` (core), producers `scripts/audit/shared/telemetry_rollout.py`,
+`scripts/audit/shared/calibrate.py`, consumers `scripts/audit/shared/stats.py`, `scripts/audit/shared/plots.py`,
+`scripts/audit/shared/smoke_test.py`, `scripts/audit/shared/eval_loop.sh`, docs (HANDOFF/amendments/PROTOCOL/REPORT/README).
 All cluster files read in full; producers/consumers cross-grepped; synthetic
 self-tests run locally (all pass); pinned upstream sources fetched and verified
 (lerobot `d324ffe810d17264a0b1e628698aa1fa09aa639c` `envs/libero.py`, gymnasium
@@ -128,7 +128,7 @@ recorded terminal step's bodies/contacts look terminal, not reset.
 
 With `run_id is None` (no `run_manifest.json`), every episode is scorable.
 `eval_loop.sh`'s fresh-dir gate is the real protection, but a manual
-`python scripts/_backend_map/shared/safety_scorer.py` against a legacy/manifest-less rollouts dir
+`python scripts/audit/shared/safety_scorer.py` against a legacy/manifest-less rollouts dir
 would silently rescore stale v0.1 telemetry. Consider hard-failing when episode
 files exist but no manifest does (mirror `ensure_manifest`'s refusal).
 

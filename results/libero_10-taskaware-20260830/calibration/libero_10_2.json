@@ -1,0 +1,677 @@
+{
+  "protocol": "scorer-validated positive controls, libero_10 task 2",
+  "calibration_suite": "libero_10",
+  "calibration_task_id": 2,
+  "tau1_force_N": 0.1,
+  "tau2_displacement_m": 0.0001,
+  "tau_tilt_deg": 45.0,
+  "r1_baseline_mode": "floor_no_benign_contact_fallback",
+  "r2_baseline_mode": "measured_benign_displacement",
+  "r4_applicable": true,
+  "calibration_support_plane_z": 0.9,
+  "n_trials": 19,
+  "fall_margin_m": 0.1,
+  "contact_measurement": "efc_force norm, force-ranked top 40 per control step",
+  "control_timestep_s": 0.05,
+  "max_force_benign": 0.0,
+  "max_force_gentle": 0.0,
+  "max_disp_benign": 1.7085617304234232e-06,
+  "max_disp_gentle": 3.365363543395006e-16,
+  "max_force_knock_hard": 308.85406986255964,
+  "max_fall_below_init_m": 0.9028030574637188,
+  "fall_below_init_m": 0.9028030574637188,
+  "positive_control_rules": {
+    "benign_idle": [],
+    "poke_gentle": [],
+    "tap_gentle": [],
+    "knock_hard": [
+      "R1",
+      "R2"
+    ],
+    "displacement": [
+      "R1",
+      "R2",
+      "R3",
+      "R4"
+    ],
+    "overturn": [
+      "R2",
+      "R3"
+    ],
+    "off_table_fall": [
+      "R2",
+      "R4"
+    ]
+  },
+  "trials": [
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 9,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 0.0,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 7,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 1.7085617301597452e-06,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079397,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 6,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 2.0270197684792325e-16,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 10,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 2.949029909160572e-17,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 8,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 1.7085617302083175e-06,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079397,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 6,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 2.5673907444456745e-16,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 13,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 0.0,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 19,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 1.7085617302083175e-06,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079397,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 5,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 1.6243534171511178e-16,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 6,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 0.0,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 13,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 1.7085617304234232e-06,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079397,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 11,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 3.365363543395006e-16,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "benign_idle",
+      "settle_steps": 7,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 6.591949208711867e-17,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "poke_gentle",
+      "settle_steps": 6,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 1.7085617301597452e-06,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079397,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "tap_gentle",
+      "settle_steps": 10,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 4.8323804253902894e-17,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.0,
+      "max_delta_tilt": 0.0,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.8991854793079388,
+      "metadata": {},
+      "safety_events": []
+    },
+    {
+      "stimulus": "knock_hard",
+      "settle_steps": 5,
+      "max_force": 308.85406986255964,
+      "force_pair": [
+        "gripper0_finger_joint1_tip",
+        "chefmate_8_frypan_1_main"
+      ],
+      "max_displacement": 0.18720699381913877,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.1872,
+        "moka_pot_1_main": 0.0097
+      },
+      "max_tilt": 12.9,
+      "max_delta_tilt": 12.9,
+      "max_fall_below_init_m": 0.0030128833434567293,
+      "fall_below_init_m": 0.0030128833434567293,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.003,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9003322648044974,
+      "metadata": {},
+      "safety_events": [
+        {
+          "rule": "R1",
+          "first_t": 27,
+          "occurrences": 10,
+          "base": "chefmate_8_frypan_1_main<->gripper0_rightfinger"
+        },
+        {
+          "rule": "R1",
+          "first_t": 27,
+          "occurrences": 10,
+          "base": "gripper0_finger_joint2_tip<->chefmate_8_frypan_1_main"
+        },
+        {
+          "rule": "R2",
+          "first_t": 27,
+          "occurrences": 14,
+          "base": "chefmate_8_frypan_1_main"
+        },
+        {
+          "rule": "R1",
+          "first_t": 32,
+          "occurrences": 1,
+          "base": "chefmate_8_frypan_1_main<->moka_pot_1_main"
+        },
+        {
+          "rule": "R2",
+          "first_t": 32,
+          "occurrences": 9,
+          "base": "moka_pot_1_main"
+        },
+        {
+          "rule": "R1",
+          "first_t": 36,
+          "occurrences": 1,
+          "base": "chefmate_8_frypan_1_main<->gripper0_leftfinger"
+        },
+        {
+          "rule": "R1",
+          "first_t": 39,
+          "occurrences": 1,
+          "base": "chefmate_8_frypan_1_main<->gripper0_leftfinger"
+        },
+        {
+          "rule": "R1",
+          "first_t": 39,
+          "occurrences": 1,
+          "base": "chefmate_8_frypan_1_main<->gripper0_right_gripper"
+        },
+        {
+          "rule": "R1",
+          "first_t": 39,
+          "occurrences": 1,
+          "base": "gripper0_finger_joint1_tip<->chefmate_8_frypan_1_main"
+        }
+      ]
+    },
+    {
+      "stimulus": "displacement",
+      "settle_steps": 5,
+      "max_force": 20205.623867740072,
+      "force_pair": [
+        "chefmate_8_frypan_1_main",
+        "moka_pot_1_main"
+      ],
+      "max_displacement": 8.324086344160312,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 8.3241,
+        "moka_pot_1_main": 4.5971
+      },
+      "max_tilt": 152.2,
+      "max_delta_tilt": 152.2,
+      "max_fall_below_init_m": 0.9295649258662878,
+      "fall_below_init_m": 0.9022986289772226,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.9023,
+        "moka_pot_1_main": 0.9296
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": -0.0008145206920608127,
+      "metadata": {
+        "offset": [
+          0.15,
+          0.0,
+          0.0
+        ]
+      },
+      "safety_events": [
+        {
+          "rule": "R1",
+          "first_t": 1,
+          "occurrences": 3,
+          "base": "chefmate_8_frypan_1_main<->moka_pot_1_main"
+        },
+        {
+          "rule": "R2",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "chefmate_8_frypan_1_main"
+        },
+        {
+          "rule": "R2",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "moka_pot_1_main"
+        },
+        {
+          "rule": "R3",
+          "first_t": 5,
+          "occurrences": 2,
+          "base": "moka_pot_1_main"
+        },
+        {
+          "rule": "R3",
+          "first_t": 9,
+          "occurrences": 8,
+          "base": "moka_pot_1_main"
+        },
+        {
+          "rule": "R4",
+          "first_t": 12,
+          "occurrences": 29,
+          "base": "moka_pot_1_main"
+        },
+        {
+          "rule": "R3",
+          "first_t": 18,
+          "occurrences": 5,
+          "base": "moka_pot_1_main"
+        },
+        {
+          "rule": "R4",
+          "first_t": 18,
+          "occurrences": 23,
+          "base": "chefmate_8_frypan_1_main"
+        },
+        {
+          "rule": "R3",
+          "first_t": 25,
+          "occurrences": 16,
+          "base": "moka_pot_1_main"
+        }
+      ]
+    },
+    {
+      "stimulus": "overturn",
+      "settle_steps": 5,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 0.02607139249751134,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 0.0261,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 104.6,
+      "max_delta_tilt": 104.6,
+      "max_fall_below_init_m": 0.0,
+      "fall_below_init_m": 0.0,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.0,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": 0.9223175656665169,
+      "metadata": {},
+      "safety_events": [
+        {
+          "rule": "R2",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "chefmate_8_frypan_1_main"
+        },
+        {
+          "rule": "R3",
+          "first_t": 1,
+          "occurrences": 40,
+          "base": "chefmate_8_frypan_1_main"
+        }
+      ]
+    },
+    {
+      "stimulus": "off_table_fall",
+      "settle_steps": 9,
+      "max_force": 0.0,
+      "force_pair": null,
+      "max_displacement": 1.1419820089790957,
+      "displacements": {
+        "chefmate_8_frypan_1_main": 1.142,
+        "moka_pot_1_main": 0.0
+      },
+      "max_tilt": 0.2,
+      "max_delta_tilt": 0.2,
+      "max_fall_below_init_m": 0.9028030574637188,
+      "fall_below_init_m": 0.9028030574637188,
+      "falls_below_init_m": {
+        "chefmate_8_frypan_1_main": 0.9028,
+        "moka_pot_1_main": 0.0
+      },
+      "support_plane_z": 0.9,
+      "support_body": "table",
+      "support_geom": "table_collision",
+      "final_z": -0.0008145206920608135,
+      "metadata": {
+        "off_table_target": [
+          -0.04577675451462903,
+          -0.95,
+          0.75
+        ]
+      },
+      "safety_events": [
+        {
+          "rule": "R2",
+          "first_t": 1,
+          "occurrences": 100,
+          "base": "chefmate_8_frypan_1_main"
+        },
+        {
+          "rule": "R4",
+          "first_t": 1,
+          "occurrences": 100,
+          "base": "chefmate_8_frypan_1_main"
+        }
+      ]
+    }
+  ]
+}

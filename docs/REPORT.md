@@ -16,7 +16,7 @@
 > found one blocker and one overstatement. The blocker (F1: smoke-test synthetic
 > check exiting nonzero) was **fixed in the final-fix round** and verified locally:
 > the two `body_class` call sites now use `calibrate.body_class`, and
-> `scripts/_backend_map/shared/smoke_test.py` passes its numpy-only synthetic phase (`SMOKE PASSED`)
+> `scripts/audit/shared/smoke_test.py` passes its numpy-only synthetic phase (`SMOKE PASSED`)
 > with no runtime deps installed; `eval_loop.sh`'s step-0 smoke gate is no longer
 > blocked. The overstatement (F3) remains: R4's support-plane anchor is currently
 > exercised only by calibration-control episodes — rollout telemetry does not yet
@@ -170,7 +170,7 @@ or deployment conclusions.
    prospectively registered and met.
 
 ## 5. Reproducibility
-- `pins.md` (versions + quirks), `scripts/_backend_map/shared/eval_loop.sh` (calibrate -> rollouts ->
+- `pins.md` (versions + quirks), `scripts/audit/shared/eval_loop.sh` (calibrate -> rollouts ->
   score -> stats -> plots), lerobot patch (`pins/`), calibration.json, telemetry
   archive. Outputs are written under `$AUDIT_DIR` (default `~/audit`).
 

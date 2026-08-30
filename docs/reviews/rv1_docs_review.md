@@ -6,9 +6,9 @@ Reviewer: rv_1_docs (fresh context, no prior assumptions). Scope: `docs/HANDOFF.
 (`docs/reviews/rv0_scorer_review.md`, `docs/REVIEW_telemetry.md`,
 `docs/reviews/rv1_scorer_review.md`, `docs/reviews/rv1_plots_review.md`).
 All doc claims cross-checked against the code they describe
-(`scripts/_backend_map/shared/telemetry_rollout.py`, `scripts/_backend_map/shared/calibrate.py`, `scripts/_backend_map/shared/safety_scorer.py`,
-`scripts/_backend_map/shared/smoke_test.py`, `scripts/_backend_map/shared/stats.py`, `scripts/_backend_map/shared/plots.py`,
-`scripts/_backend_map/shared/eval_loop.sh`), the archived `results/*.json` artifacts, and git state
+(`scripts/audit/shared/telemetry_rollout.py`, `scripts/audit/shared/calibrate.py`, `scripts/audit/shared/safety_scorer.py`,
+`scripts/audit/shared/smoke_test.py`, `scripts/audit/shared/stats.py`, `scripts/audit/shared/plots.py`,
+`scripts/audit/shared/eval_loop.sh`), the archived `results/*.json` artifacts, and git state
 (HEAD `647b191` = v0.1-era; all fixes uncommitted). Every selftest executed
 locally; the smoke gate executed and its failure reproduced.
 
@@ -42,7 +42,7 @@ validation run can start or its numbers can be trusted.
   `results/calibration.json` (trial 9: `knock_hard`, 1814.1 N,
   bowl↔plate). Accurate everywhere it appears (HANDOFF, amendments, PROTOCOL §3,
   REPORT §2).
-- **C3 no-op drop:** `git show HEAD:scripts/_backend_map/shared/calibrate.py` confirms the old drop
+- **C3 no-op drop:** `git show HEAD:scripts/audit/shared/calibrate.py` confirms the old drop
   path's `bodies.get(None)` (line 77) with an unimplemented "lift to 0.15 m"
   docstring — the amendments' description of the v0.1 defect is correct.
 - **Forensics numbers in REPORT.md §3** match `events_forensics.json` exactly:
@@ -80,7 +80,7 @@ validation run can start or its numbers can be trusted.
 
 ### D1 — BLOCKER (documentation failure, machine-independent): the docs ship the smoke gate as delivered while it hard-fails; no doc discloses it
 
-`python3 scripts/_backend_map/shared/smoke_test.py` exits **1** on the synthetic (numpy-only)
+`python3 scripts/audit/shared/smoke_test.py` exits **1** on the synthetic (numpy-only)
 phase, reproduced on this machine:
 
 ```
@@ -119,7 +119,7 @@ add a line to HANDOFF's Risk notes so the tree's actual status is recorded.
 
 ### D2 — HIGH: docs claim support-plane R4 "from recorded telemetry geometry"; the producer records none, and the docs contradict each other
 
-- `grep support_plane|support_planes|static_bodies scripts/_backend_map/shared/telemetry_rollout.py`
+- `grep support_plane|support_planes|static_bodies scripts/audit/shared/telemetry_rollout.py`
   → **0 hits**. Rollout episodes carry no static geometry (schema verified:
   provenance, task fields, init ids, terminal_action, success, n_steps,
   max_steps, rollout_seconds, body_classes, steps).

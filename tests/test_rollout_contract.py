@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import sys
+import types
 from pathlib import Path
 
 import numpy as np
@@ -11,11 +13,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def load_script(name):
     script_paths = {
-        "telemetry_rollout": ROOT / "scripts" / "_backend_map" / "shared" / "telemetry_rollout.py",
-        "safety_scorer": ROOT / "scripts" / "_backend_map" / "shared" / "safety_scorer.py",
-        "stats": ROOT / "scripts" / "_backend_map" / "shared" / "stats.py",
-        "plots": ROOT / "scripts" / "_backend_map" / "shared" / "plots.py",
-        "mlx_smolvla": ROOT / "scripts" / "_backend_map" / "mlx" / "mlx_smolvla.py",
+        "telemetry_rollout": ROOT / "scripts" / "audit" / "shared" / "telemetry_rollout.py",
+        "safety_scorer": ROOT / "scripts" / "audit" / "shared" / "safety_scorer.py",
+        "stats": ROOT / "scripts" / "audit" / "shared" / "stats.py",
+        "plots": ROOT / "scripts" / "audit" / "shared" / "plots.py",
+        "render_videos": ROOT / "scripts" / "audit" / "shared" / "render_videos.py",
+        "mujoco_names": ROOT / "scripts" / "audit" / "shared" / "mujoco_names.py",
+        "mlx_smolvla": ROOT / "scripts" / "audit" / "mlx" / "mlx_smolvla.py",
     }
     path = script_paths.get(name, ROOT / "scripts" / f"{name}.py")
     assert path.is_file(), f"script not found for {name}: {path}"
@@ -89,6 +93,27 @@ def test_manifest_rejects_disjoint_task_sets(tmp_path):
             manifest_path,
             {"task_ids": [1], "run_id": "run-1", "policy_sha256": "policy-1"},
         )
+
+
+def test_init_state_schedule_uses_task_specific_state_count():
+    telemetry = load_script("telemetry_rollout")
+
+    class RawEnv:
+        _init_states = np.zeros((7, 4), dtype=np.float32)
+
+    raw_env = RawEnv()
+    assert telemetry.init_state_count(raw_env) == 7
+    assert telemetry.resolve_init_state_index(raw_env, 13) == 6
+    assert telemetry.init_state_id_for_episode(0, 2, 0, 1, 7) == 2
+
+
+def test_episode_schedule_preserves_global_offset_and_batch_slot():
+    telemetry = load_script("telemetry_rollout")
+
+    assert telemetry.episode_id(37, 2, 1, 3) == 44
+    assert telemetry.init_state_id_for_episode(37, 2, 1, 3, 7) == 2
+    with pytest.raises(ValueError, match="env_ix"):
+        telemetry.episode_id(0, 0, 3, 3)
 
 
 def test_reuse_requires_success_source_diagnostic(tmp_path):
@@ -241,3 +266,72 @@ def test_safety_quaternion_math_matches_mujoco_wxyz_storage():
     assert scorer.tilt_deg([1.0, 0.0, 0.0, 0.0]) == pytest.approx(0.0, abs=1e-4)
     assert scorer.tilt_deg([half, half, 0.0, 0.0]) == pytest.approx(90.0, abs=1e-5)
     assert scorer.tilt_deg([half, 0.0, 0.0, half]) == pytest.approx(0.0, abs=1e-4)
+
+
+def test_video_replay_uses_action_prev_and_selects_both_outcomes(tmp_path):
+    videos = load_script("render_videos")
+    failure = {
+        "success": False,
+        "n_steps": 1,
+        "steps": [{"t": 0}, {"t": 1, "action_prev": [0] * 7}],
+    }
+    success = {
+        "success": True,
+        "n_steps": 1,
+        "steps": [{"t": 0}, {"t": 1, "action_prev": [1] * 7}],
+    }
+    paths = []
+    for index, episode in enumerate((failure, success)):
+        path = tmp_path / f"ep_{index:03d}.json"
+        path.write_text(json.dumps(episode))
+        paths.append(path)
+
+    selected = videos.select_representatives(paths)
+
+    assert selected == {"failure": paths[0], "success": paths[1]}
+    assert videos.outcome_candidates(paths, expected_success=False) == [paths[0]]
+    assert videos.outcome_candidates(paths, expected_success=True) == [paths[1]]
+    assert videos.episode_actions(failure) == [[0.0] * 7]
+
+
+def test_mujoco_names_use_authoritative_id2name_for_sparse_wrapper_names(monkeypatch):
+    names = load_script("mujoco_names")
+    calls = []
+
+    def id2name(model, object_type, object_id):
+        calls.append((object_type, object_id))
+        values = {("geom", 0): "first", ("geom", 1): None, ("geom", 2): "third"}
+        return values.get((object_type, object_id))
+
+    fake_mujoco = types.SimpleNamespace(
+        mjtObj=types.SimpleNamespace(mjOBJ_GEOM="geom", mjOBJ_BODY="body"),
+        mj_id2name=id2name,
+    )
+    monkeypatch.setitem(sys.modules, "mujoco", fake_mujoco)
+
+    model = types.SimpleNamespace(ngeom=3, nbody=1)
+    assert names.geom_name(model, 0) == "first"
+    assert names.geom_name(model, 1) == "geom1"
+    assert names.geom_name(model, 2) == "third"
+    assert calls == [("geom", 0), ("geom", 1), ("geom", 2)]
+
+
+def test_scorer_resolves_task_scoped_calibration_profile():
+    scorer = load_script("safety_scorer")
+    saved = scorer.TASK_CALIBRATIONS
+    try:
+        profile = {
+            "calibration_suite": "libero_10",
+            "calibration_task_id": 7,
+            "tau1_force_N": 11.0,
+            "tau2_displacement_m": 0.12,
+            "tau_tilt_deg": 33.0,
+        }
+        scorer.TASK_CALIBRATIONS = {("libero_10", 7): profile}
+        episode = {
+            "task_id": 7,
+            "provenance": {"suite": "libero_10"},
+        }
+        assert scorer.calibration_for_episode(episode) is profile
+    finally:
+        scorer.TASK_CALIBRATIONS = saved

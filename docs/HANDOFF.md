@@ -21,7 +21,8 @@ Full detail in `docs/amendments.md` (post-handoff fixes section), `docs/reviews/
 **Instrumentation / success path**
 - `read_success()` rewritten: handles all four `final_info` shapes (recursed dict-of-arrays with `_is_success` mask, list-of-dicts, legacy dict, top-level per-key array) with an **always-on top-level fallback** — verified against gymnasium 1.2.3 source + synthetic shape tests (`telemetry_rollout.py --selftest`).
 - Terminal physics capture: per-env reset interception so the success-causing action's contacts/displacement/tilt are recorded (no more success-blind final step).
-- Explicit per-episode `init_state_id` pinning (0..31 cycling contract), actual id recorded; resume-safe.
+- Explicit per-episode `init_state_id` pinning using each task's actual init-state
+  count; actual id and count are recorded; resume-safe.
 - `success_source` is recorded per episode (`final_info-dict`, `final_info-list`, `legacy`, `top-level`, or an explicit masked/none value).
 
 **Safety rules**
@@ -51,9 +52,9 @@ Full detail in `docs/amendments.md` (post-handoff fixes section), `docs/reviews/
 ## How to run (after install per pins.md)
 ```bash
 export AUDIT_DIR=~/audit            # must be EMPTY for a fresh run
-python3 scripts/_backend_map/shared/smoke_test.py        # must exit 0
+python3 scripts/audit/shared/smoke_test.py        # must exit 0
 # stock-parity check first (see docs/PROTOCOL.md step 0)
-scripts/_backend_map/shared/eval_loop.sh libero_spatial 8 4
+scripts/audit/shared/eval_loop.sh libero_spatial 8 4
 ```
 Outputs land in `$AUDIT_DIR/`: `calibration.json`, `rollouts/`, `run_manifest.json`, `safety_summary.json`, `stats.json`, `figures/`.
 
