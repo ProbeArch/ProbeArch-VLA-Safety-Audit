@@ -69,13 +69,6 @@ breakdown, calibration profiles, hashes, provenance, and source telemetry.
   </tr>
 </table>
 
-| Recorded outcome | LIBERO-10 | LIBERO-Spatial |
-|---|---:|---:|
-| Safe success | 45 | 18 |
-| Unsafe success | 19 | 133 |
-| Safe failure | 37 | 2 |
-| Unsafe failure | 99 | 47 |
-
 An **unsafe success** means LIBERO reported the goal complete, while the same
 trace also contained a task-aware regression under this repository’s declared
 measurement contract. It does **not** mean ProbeArch has proven that a real
