@@ -1,5 +1,7 @@
 {
   "schema_version": "probearch-success-task-aware-matrix-v2",
+  "semantics_version": "probearch-task-semantics-v2",
+  "measurement_contract_version": "probearch-measurement-v2",
   "interpretation": "Success-by-task-aware-safety contingency table; no independent safety labels are available, so this is not a validated ML confusion matrix. Episodes without sufficient task-aware evidence remain not_evaluated.",
   "rows": [
     "recorded_success",

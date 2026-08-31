@@ -256,6 +256,10 @@ def verify(
         )
     if matrix.get("n_episodes") != expected_n:
         errors.append(f"matrix n_episodes {matrix.get('n_episodes')!r} != {expected_n}")
+    if matrix.get("semantics_version") != "probearch-task-semantics-v2":
+        errors.append("matrix semantics version mismatch")
+    if matrix.get("measurement_contract_version") != "probearch-measurement-v2":
+        errors.append("matrix measurement-contract version mismatch")
     if _count_matrix(matrix) != expected_n:
         errors.append(f"matrix cell total {_count_matrix(matrix)} != {expected_n}")
     matrix_counts = matrix.get("counts") or {}
