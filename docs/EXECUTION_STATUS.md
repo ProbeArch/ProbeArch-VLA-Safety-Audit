@@ -24,6 +24,11 @@ Updated 2026-08-31.
 - TurboVLA official checkpoint download and CUDA load-gate attempt. The gate is
   explicitly `NOT_EVALUATED`: the required gated DINOv3 backbone could not be
   accessed, so no TurboVLA episode or comparison result was produced.
+- X-VLA official source/config/processor compatibility check. The processor
+  loaded, but the 3.52 GB float32 checkpoint was not moved to the 4 GB GPU;
+  X-VLA is therefore also `NOT_EVALUATED`.
+- Root README, published JSON/report/matrix consistency, and all repository
+  shell-script syntax checks were re-verified.
 
 ## Requires external execution or people
 
