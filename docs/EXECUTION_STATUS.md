@@ -32,6 +32,9 @@ Updated 2026-08-31.
 - Regular wheel installation was smoke-tested outside the checkout; the
   installed CLI can load schemas, validate the pilot config, and materialize
   a robustness manifest without relying on editable-install paths.
+- Annotation sampling was rechecked after removing candidate outcome,
+  stratum, and priority fields from the annotator-facing CSV; strict analysis
+  now rejects duplicate or incomplete two-rater pairings.
 
 ## Requires external execution or people
 
