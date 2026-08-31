@@ -70,10 +70,22 @@ Before episodes:
 
 ### Current gate result (2026-08-31)
 
-Not started. The official repository currently resolves to revision
-`6bc2513f5f1cbec715cc668b414392a6cae5c671`; checkpoint and processor hashes
-still need to be pinned before a load test. X-VLA remains outside all reported
-baseline results.
+The official repository currently resolves to revision
+`6bc2513f5f1cbec715cc668b414392a6cae5c671`. The official
+`2toINF/X-VLA-Libero` model revision currently resolves to
+`129e71460678b7236cee6fc9707f09d9fa0c3590`; its small processor/config files
+loaded successfully in the isolated Python 3.11 environment. The model
+checkpoint is a 3,519,068,172-byte `model.safetensors` file (HEAD ETag/SHA
+`ccda9b23b8b274ef1f3fa0d4f111d178313e8b6af1a0d305a059b287c0765933`). Its
+config declares `action_mode=ee6d`, `num_actions=30`, `max_len_seq=512`,
+`use_proprio=true`, `torch_dtype=float32`, and Transformers `4.51.3`.
+
+The full checkpoint was not downloaded or moved to the GPU: the official
+deployment script loads it as float32 and the laptop exposes only 4.0 GB VRAM,
+so a stock CUDA load is not a responsible assumption. No X-VLA episode was
+run and X-VLA remains outside all reported baseline results. Status:
+`NOT_EVALUATED` pending an approved low-memory loading strategy or a machine
+with sufficient VRAM, followed by action/camera parity and a one-task pilot.
 
 ## Comparison rule
 
