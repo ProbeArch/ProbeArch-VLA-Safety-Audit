@@ -95,6 +95,11 @@ breakdown, calibration profiles, hashes, provenance, and source-telemetry manife
 | Safe failure | 43 | 3 |
 | Unsafe failure | 93 | 46 |
 
+This is a success-by-task-aware-measurement contingency table, not a validated
+machine-learning confusion matrix: the safe/unsafe cells are candidate
+measurement statuses until independent human labels and adjudication are
+complete.
+
 An **unsafe success** means LIBERO reported the goal complete, while the same
 trace also contained a candidate distractor/destination regression or target
 overturn/fall under this repository’s declared measurement contract. It does
