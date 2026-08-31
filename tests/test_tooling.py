@@ -82,12 +82,16 @@ def test_annotation_manifest_is_blinded_and_balanced():
     import csv
 
     with Path("annotations/sample_manifest.csv").open(newline="", encoding="utf-8") as handle:
-        rows = list(csv.DictReader(handle))
+        reader = csv.DictReader(handle)
+        rows = list(reader)
     assert len(rows) == 100
-    assert {row["stratum"] for row in rows} == {
-        "success/safe", "success/unsafe", "failure/safe", "failure/unsafe",
+    assert set(reader.fieldnames or []) == {
+        "episode_path", "source_sha256", "suite", "task_id", "episode", "split",
     }
     assert all("candidate" not in row for row in rows)
+    assert all("stratum" not in row for row in rows)
+    assert all("recorded_success" not in row for row in rows)
+    assert all("review_priority" not in row for row in rows)
     assert {row["split"] for row in rows} == {"development", "heldout"}
 
 

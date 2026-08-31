@@ -2,10 +2,10 @@
 """Prepare a blinded, stratified annotation manifest from frozen rollouts.
 
 The script derives the current candidate outcome only for sampling. It never
-writes that candidate label to the annotator CSV, preventing label leakage.
-The candidate outcome and the selected strata are printed as an audit summary
-for the study owner; annotators receive only the manifest rows and evidence
-references.
+writes that candidate label, recorded success, or sampling priority to the
+annotator CSV, preventing label leakage. The candidate outcome and selected
+strata are returned in an owner-only audit summary; annotators receive only
+neutral manifest fields and evidence references.
 """
 
 from __future__ import annotations
@@ -131,11 +131,14 @@ def prepare(config: dict, output: Path) -> dict:
             handle,
             fieldnames=[
                 "episode_path", "source_sha256", "suite", "task_id", "episode",
-                "recorded_success", "stratum", "review_priority", "split",
+                "split",
             ],
         )
         writer.writeheader()
-        writer.writerows(selected)
+        writer.writerows(
+            {field: record[field] for field in writer.fieldnames}
+            for record in selected
+        )
     return {
         "schema_version": "probearch-annotation-sample-manifest-v1",
         "seed": int(config.get("seed", 0)),
