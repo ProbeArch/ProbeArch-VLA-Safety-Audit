@@ -54,7 +54,7 @@ success definition, horizon, seed policy, image resolution, or action format.
 
 ### Model 1 — TurboVLA (first)
 
-- [ ] Pin the official TurboVLA repository commit and the exact LIBERO
+- [x] Pin the official TurboVLA repository commit and the exact LIBERO
   checkpoint; record the checkpoint SHA-256, license, and model configuration.
 - [ ] Create a separate Python 3.10 evaluation environment so TurboVLA
   dependencies cannot silently change the validated SmolVLA environment.
@@ -82,7 +82,10 @@ success definition, horizon, seed policy, image resolution, or action format.
 **TurboVLA exit gate:** a clean, reproducible pilot completes on the target
 machine and its report is directly comparable with the corrected baseline.
 
-### Model 2 — X-VLA (second)
+### Model 2 — X-VLA (deferred)
+
+X-VLA is intentionally deferred. Do not allocate setup or episode budget to it
+until TurboVLA has passed its load, parity, and matched-pilot gates.
 
 - [ ] Pin the official X-VLA implementation and the exact LIBERO checkpoint;
   record the checkpoint SHA-256, action mode, domain ID, and processor version.

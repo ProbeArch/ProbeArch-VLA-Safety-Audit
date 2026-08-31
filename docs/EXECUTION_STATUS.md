@@ -21,7 +21,8 @@ Updated 2026-08-31.
   including independent τ1/τ2/tilt/fall-margin sweeps.
 - Detector/schema versioning, RuleDetector interface, schema checker, and CI.
 - Matrix ablation utility and paper outline.
-- TurboVLA/X-VLA compatibility gates and source references.
+- TurboVLA/X-VLA compatibility gates and source references; TurboVLA is the
+  only active additional-model target and X-VLA is deferred.
 - TurboVLA official checkpoint download and CUDA load-gate attempt. The gate is
   explicitly `NOT_EVALUATED`: the required gated DINOv3 backbone could not be
   accessed, so no TurboVLA episode or comparison result was produced.
@@ -49,9 +50,9 @@ Updated 2026-08-31.
 
 - Independent double annotation, agreement, adjudication, and held-out labels.
 - Actual perturbation rollouts on the CUDA machine.
-- TurboVLA authorized load/pilot and X-VLA load/pilot on the RTX 3050. TurboVLA
-  first requires access to `facebook/dinov3-vitb16-pretrain-lvd1689m`; do not
-  replace it with another backbone.
+- TurboVLA authorized load/pilot on the RTX 3050. The Hugging Face account is
+  authenticated but is not authorized for `facebook/dinov3-vitb16-pretrain-
+  lvd1689m`; do not replace it with another backbone. X-VLA is deferred.
 - Final 100/200-episode model runs, if pilots pass.
 - PR creation/merge: the branch is pushed, but the current GitHub token does
   not have the `createPullRequest` permission.

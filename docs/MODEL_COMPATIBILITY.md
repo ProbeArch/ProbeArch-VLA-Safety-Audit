@@ -39,7 +39,10 @@ and verified locally with SHA-256
 `a7c3faa825a6c68d365df0647c39845c3a7bb553e1e24be3729b76de22f703fa`.
 CUDA was available on an NVIDIA GeForce RTX 3050 Laptop GPU with 4.0 GB
 reported VRAM, and the official evaluator reached the policy/DINO encoder
-construction path.
+construction path. A subsequent authorization check confirmed that the local
+Hugging Face account is signed in, but it is still not on the gated model's
+authorized list; listing the repository succeeds while downloading its files
+returns HTTP 403.
 
 The load gate then stopped before full policy construction because the required
 `facebook/dinov3-vitb16-pretrain-lvd1689m` backbone is a gated Hugging Face
