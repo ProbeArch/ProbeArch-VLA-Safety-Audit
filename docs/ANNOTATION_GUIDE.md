@@ -57,3 +57,15 @@ contact and destination-motion cases. Two annotators independently label every
 episode; adjudication occurs only after agreement statistics are frozen. Keep a
 development split for rule refinement and a held-out validation split for final
 precision/recall reporting.
+
+After both annotators complete the same CSV, run the strict agreement gate:
+
+```bash
+python scripts/analysis/label_agreement.py annotations/labels.csv \
+  --require-two-annotators --require-development-heldout \
+  --output annotations/label_agreement.json
+```
+
+This rejects duplicate rows, incomplete episode pairing, missing split labels,
+and inconsistent split metadata before kappa or candidate-versus-reference
+metrics are used.
