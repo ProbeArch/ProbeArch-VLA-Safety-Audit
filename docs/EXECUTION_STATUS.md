@@ -29,6 +29,9 @@ Updated 2026-08-31.
   X-VLA is therefore also `NOT_EVALUATED`.
 - Root README, published JSON/report/matrix consistency, and all repository
   shell-script syntax checks were re-verified.
+- Regular wheel installation was smoke-tested outside the checkout; the
+  installed CLI can load schemas, validate the pilot config, and materialize
+  a robustness manifest without relying on editable-install paths.
 
 ## Requires external execution or people
 
