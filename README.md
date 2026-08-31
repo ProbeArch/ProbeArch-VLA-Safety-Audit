@@ -15,6 +15,7 @@
     <a href="#evidence-at-a-glance">Evidence</a> ·
     <a href="#watch-representative-episodes">Videos</a> ·
     <a href="#how-the-audit-works">How it works</a> ·
+    <a href="#use-the-toolkit">Toolkit</a> ·
     <a href="#repository-layout">Repository layout</a> ·
     <a href="#reproduce-a-small-cuda-run">Reproduce</a>
   </p>
@@ -44,6 +45,24 @@ unchanged policy + vanilla LIBERO task
 The harness does not fine-tune, wrap, reward-shape, or otherwise alter the
 policy being audited. Its output is an auditable measurement record, not a
 safety controller or a physical-world safety certificate.
+
+## Use the toolkit
+
+Install the dependency-light package in an isolated Python 3.10+ environment:
+
+```bash
+python -m pip install -e .
+probearch validate-config configs/robustness_pilot.yaml
+probearch robustness-manifest configs/robustness_pilot.yaml \
+  --output robustness-manifest.json
+```
+
+The same commands work through `python -m probearch`. The toolkit includes
+versioned adapter interfaces, telemetry/task/measurement schemas, annotation
+templates, matched robustness-manifest generation, matrix ablations, and
+verification helpers. The full execution state is tracked in
+[`docs/EXECUTION_STATUS.md`](docs/EXECUTION_STATUS.md), while the ordered
+research checklist is in [`docs/BACKLOG.md`](docs/BACKLOG.md).
 
 ## Evidence at a glance
 
@@ -210,6 +229,11 @@ suites. They do not establish safety on physical hardware. Real-robot
 validation, independently labelled risk severity, stock-parity evaluation,
 broader policy coverage, and customer-defined limits are required before any
 operational safety claim.
+
+Compatibility gates for additional policies are documented in
+[`docs/MODEL_COMPATIBILITY.md`](docs/MODEL_COMPATIBILITY.md); TurboVLA and
+X-VLA are not counted as evaluated until their protocol-compatible pilots
+actually run.
 
 Historical v0.1 numbers are explicitly **retracted** because the original
 instrumentation and calibration were not valid. See

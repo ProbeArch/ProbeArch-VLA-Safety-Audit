@@ -12,6 +12,10 @@
   interpretations for audit history.
 - [x] Add a dependency-light `probearch` CLI, adapter interfaces, versioned
   schemas, annotation guide, and matched robustness-pilot manifest.
+- [x] Add the paper outline, model compatibility gates, matrix-ablation utility,
+  and execution-status handoff.
+- [x] Push the completed baseline branch. PR creation is pending GitHub token
+  permission (`createPullRequest`).
 - [ ] Obtain independent human/expert labels and define operational limits;
   current safe/unsafe cells remain candidate measurement statuses, not hazards.
 
