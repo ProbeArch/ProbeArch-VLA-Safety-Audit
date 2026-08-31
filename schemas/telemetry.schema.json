@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "probearch://schemas/telemetry-v1",
+  "title": "ProbeArch episode telemetry",
+  "type": "object",
+  "required": ["task", "task_id", "ep_ix", "success", "steps", "provenance"],
+  "properties": {
+    "task": {"type": "string"},
+    "task_id": {"type": "integer", "minimum": 0},
+    "ep_ix": {"type": "integer", "minimum": 0},
+    "success": {"type": "boolean"},
+    "steps": {"type": "array"},
+    "provenance": {"type": "object", "required": ["suite", "run_id", "policy_sha256"]}
+  }
+}

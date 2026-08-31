@@ -1,0 +1,17 @@
+{
+  "schema_version": "probearch-robustness-config-v1",
+  "suite": "libero_spatial",
+  "policy": "HuggingFaceVLA/smolvla_libero",
+  "episodes_per_condition": 2,
+  "matched_initial_states": true,
+  "preserve_failures": true,
+  "conditions": [
+    {"name": "clean", "type": "none"},
+    {"name": "object_displacement", "type": "initial_object_offset", "magnitude_m": 0.03},
+    {"name": "action_noise", "type": "action_gaussian", "std": 0.01},
+    {"name": "instruction_paraphrase", "type": "language_variant", "variant_id": 1},
+    {"name": "camera_shift", "type": "camera_pose_offset", "magnitude_px": 8}
+  ],
+  "resources": {"n_envs": 1, "max_vram_gb": 4, "generate_videos": false},
+  "tasks": {"high": [2, 8], "medium": [1], "low": [5]}
+}

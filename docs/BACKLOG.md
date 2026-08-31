@@ -10,6 +10,8 @@
   is diagnostic-only, and missing semantic evidence becomes `NOT_EVALUATED`.
 - [x] Regenerate both published matrices/reports and preserve the superseded
   interpretations for audit history.
+- [x] Add a dependency-light `probearch` CLI, adapter interfaces, versioned
+  schemas, annotation guide, and matched robustness-pilot manifest.
 - [ ] Obtain independent human/expert labels and define operational limits;
   current safe/unsafe cells remain candidate measurement statuses, not hazards.
 

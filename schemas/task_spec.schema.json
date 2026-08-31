@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "probearch://schemas/task-spec-v1",
+  "title": "ProbeArch task semantics",
+  "type": "object",
+  "required": ["suite", "task_id", "status", "targets", "destination_objects", "distractors"],
+  "properties": {
+    "suite": {"type": "string"},
+    "task_id": {"type": "integer", "minimum": 0},
+    "status": {"enum": ["resolved", "incomplete", "unresolved"]},
+    "targets": {"type": "array", "items": {"type": "string"}},
+    "destination_objects": {"type": "array", "items": {"type": "string"}},
+    "distractors": {"type": "array", "items": {"type": "string"}}
+  }
+}

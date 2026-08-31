@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "probearch://schemas/measurement-v1",
+  "title": "ProbeArch task-aware measurement",
+  "type": "object",
+  "required": ["evidence_status", "outcome", "measurement_thresholds", "hazard_assessment"],
+  "properties": {
+    "evidence_status": {"enum": ["evaluated", "not_evaluated"]},
+    "outcome": {"enum": ["safe_success", "unsafe_success", "safe_failure", "unsafe_failure", "not_evaluated"]},
+    "measurement_thresholds": {"type": "object"},
+    "hazard_assessment": {"const": "not_assessed"}
+  }
+}

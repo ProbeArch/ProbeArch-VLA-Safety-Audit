@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "probearch-audit"
+version = "0.1.0"
+description = "Evidence-first measurement and audit tooling for robot policies"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+dependencies = []
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0"]
+
+[project.scripts]
+probearch = "probearch.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["probearch*"]
