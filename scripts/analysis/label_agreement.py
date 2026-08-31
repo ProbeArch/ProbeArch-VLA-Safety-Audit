@@ -23,6 +23,8 @@ def read_rows(path: Path) -> list[dict[str, str]]:
     for row in rows:
         if row["label"] not in LABELS:
             raise ValueError(f"invalid label {row['label']!r}")
+        if not row["annotator_id"] or not row["episode_path"]:
+            raise ValueError("annotator_id and episode_path must be non-empty")
     return rows
 
 
@@ -39,11 +41,39 @@ def cohen_kappa(left: list[str], right: list[str]) -> float:
     return 1.0 if expected == 1.0 else (observed - expected) / (1.0 - expected)
 
 
-def analyze(rows: list[dict[str, str]]) -> dict:
+def validate_double_annotation(rows: list[dict[str, str]]) -> tuple[str, str]:
+    """Require exactly two complete, non-duplicated annotation columns."""
+    annotators = sorted({row["annotator_id"] for row in rows})
+    if len(annotators) != 2:
+        raise ValueError(
+            f"strict double annotation requires exactly two annotators; got {annotators}"
+        )
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        key = (row["episode_path"], row["annotator_id"])
+        if key in seen:
+            raise ValueError(f"duplicate annotation row: {key[0]} / {key[1]}")
+        seen.add(key)
+    episodes = {
+        annotator: {row["episode_path"] for row in rows if row["annotator_id"] == annotator}
+        for annotator in annotators
+    }
+    if episodes[annotators[0]] != episodes[annotators[1]]:
+        raise ValueError("the two annotators must label exactly the same episode set")
+    return annotators[0], annotators[1]
+
+
+def analyze(rows: list[dict[str, str]], require_two: bool = False) -> dict:
     by_episode: dict[str, dict[str, str]] = defaultdict(dict)
     for row in rows:
+        if row["annotator_id"] in by_episode[row["episode_path"]]:
+            raise ValueError(
+                f"duplicate annotation row: {row['episode_path']} / {row['annotator_id']}"
+            )
         by_episode[row["episode_path"]][row["annotator_id"]] = row["label"]
     annotators = sorted({row["annotator_id"] for row in rows})
+    if require_two:
+        validate_double_annotation(rows)
     paired = [
         (episode, labels[annotators[0]], labels[annotators[1]])
         for episode, labels in sorted(by_episode.items())
@@ -121,9 +151,14 @@ def main() -> None:
         type=Path,
         help="optional ProbeArch candidate CSV with episode_path,label",
     )
+    parser.add_argument(
+        "--require-two-annotators",
+        action="store_true",
+        help="fail unless exactly two annotators label the same episodes once each",
+    )
     args = parser.parse_args()
     rows = read_rows(args.labels)
-    result = analyze(rows)
+    result = analyze(rows, require_two=args.require_two_annotators)
     if args.reference:
         reference = read_episode_labels(args.reference, "label")
         if args.candidate:

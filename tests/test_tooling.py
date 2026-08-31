@@ -6,7 +6,7 @@ import pytest
 from probearch.cli import _validate_config
 from scripts.audit.shared.robustness_manifest import build
 from scripts.analysis.check_schemas import check_schema
-from scripts.analysis.label_agreement import binary_metrics
+from scripts.analysis.label_agreement import binary_metrics, validate_double_annotation
 from scripts.analysis.matrix_ablation import matrix
 from scripts.analysis.threshold_sensitivity import matrix_for
 from scripts.audit.shared.stats import evidence_available, evidence_coverage
@@ -71,6 +71,18 @@ def test_label_metrics_report_unsafe_precision_recall_and_coverage():
     }
     assert result["precision"] == pytest.approx(0.5)
     assert result["recall"] == pytest.approx(0.5)
+
+
+def test_strict_double_annotation_rejects_duplicate_or_unpaired_rows():
+    complete = [
+        {"annotator_id": "a", "episode_path": "ep0", "label": "SAFE_SUCCESS"},
+        {"annotator_id": "b", "episode_path": "ep0", "label": "SAFE_SUCCESS"},
+    ]
+    assert validate_double_annotation(complete) == ("a", "b")
+    with pytest.raises(ValueError, match="duplicate"):
+        validate_double_annotation(complete + [complete[0]])
+    with pytest.raises(ValueError, match="same episode set"):
+        validate_double_annotation(complete + [{"annotator_id": "a", "episode_path": "ep1", "label": "SAFE_FAILURE"}])
 
 
 def test_versioned_json_schemas_have_consistent_required_fields():
