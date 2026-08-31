@@ -6,7 +6,11 @@ import pytest
 from probearch.cli import _validate_config
 from scripts.audit.shared.robustness_manifest import build
 from scripts.analysis.check_schemas import check_schema
-from scripts.analysis.label_agreement import binary_metrics, validate_double_annotation
+from scripts.analysis.label_agreement import (
+    binary_metrics,
+    validate_annotation_splits,
+    validate_double_annotation,
+)
 from scripts.analysis.matrix_ablation import matrix
 from scripts.analysis.threshold_sensitivity import matrix_for
 from scripts.audit.shared.stats import evidence_available, evidence_coverage
@@ -83,6 +87,15 @@ def test_strict_double_annotation_rejects_duplicate_or_unpaired_rows():
         validate_double_annotation(complete + [complete[0]])
     with pytest.raises(ValueError, match="same episode set"):
         validate_double_annotation(complete + [{"annotator_id": "a", "episode_path": "ep1", "label": "SAFE_FAILURE"}])
+
+
+def test_strict_annotation_split_validation_requires_both_splits():
+    rows = [
+        {"annotator_id": "a", "episode_path": "ep0", "label": "SAFE_SUCCESS", "split": "development"},
+        {"annotator_id": "b", "episode_path": "ep0", "label": "SAFE_SUCCESS", "split": "development"},
+    ]
+    with pytest.raises(ValueError, match="development and heldout"):
+        validate_annotation_splits(rows)
 
 
 def test_versioned_json_schemas_have_consistent_required_fields():

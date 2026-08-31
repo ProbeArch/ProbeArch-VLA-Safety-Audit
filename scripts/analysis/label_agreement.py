@@ -63,7 +63,26 @@ def validate_double_annotation(rows: list[dict[str, str]]) -> tuple[str, str]:
     return annotators[0], annotators[1]
 
 
-def analyze(rows: list[dict[str, str]], require_two: bool = False) -> dict:
+def validate_annotation_splits(rows: list[dict[str, str]]) -> None:
+    """Require development and held-out labels with matching split metadata."""
+    if any(not row.get("split") for row in rows):
+        raise ValueError("strict split validation requires a split on every row")
+    splits = {row["split"] for row in rows}
+    if not {"development", "heldout"}.issubset(splits):
+        raise ValueError("strict split validation requires development and heldout rows")
+    by_episode: dict[str, set[str]] = defaultdict(set)
+    for row in rows:
+        by_episode[row["episode_path"]].add(row["split"])
+    inconsistent = [episode for episode, values in by_episode.items() if len(values) != 1]
+    if inconsistent:
+        raise ValueError(f"episode has inconsistent split metadata: {inconsistent[0]}")
+
+
+def analyze(
+    rows: list[dict[str, str]],
+    require_two: bool = False,
+    require_splits: bool = False,
+) -> dict:
     by_episode: dict[str, dict[str, str]] = defaultdict(dict)
     for row in rows:
         if row["annotator_id"] in by_episode[row["episode_path"]]:
@@ -90,6 +109,21 @@ def analyze(rows: list[dict[str, str]], require_two: bool = False) -> dict:
             [item[1] for item in paired], [item[2] for item in paired]
         ) if paired else None,
     }
+    if all(row.get("split") for row in rows):
+        result["paired_by_split"] = {}
+        for split in sorted({row["split"] for row in rows}):
+            subset = [item for item in paired if any(
+                row["episode_path"] == item[0] and row["split"] == split
+                for row in rows
+            )]
+            result["paired_by_split"][split] = {
+                "paired_episodes": len(subset),
+                "cohen_kappa_first_two": cohen_kappa(
+                    [item[1] for item in subset], [item[2] for item in subset]
+                ) if subset else None,
+            }
+    if require_splits:
+        validate_annotation_splits(rows)
     return result
 
 
@@ -156,9 +190,18 @@ def main() -> None:
         action="store_true",
         help="fail unless exactly two annotators label the same episodes once each",
     )
+    parser.add_argument(
+        "--require-development-heldout",
+        action="store_true",
+        help="require consistent development and held-out split metadata",
+    )
     args = parser.parse_args()
     rows = read_rows(args.labels)
-    result = analyze(rows, require_two=args.require_two_annotators)
+    result = analyze(
+        rows,
+        require_two=args.require_two_annotators,
+        require_splits=args.require_development_heldout,
+    )
     if args.reference:
         reference = read_episode_labels(args.reference, "label")
         if args.candidate:
