@@ -1,5 +1,7 @@
 {
   "schema_version": "probearch-threshold-sensitivity-v1",
+  "semantics_version": "probearch-task-semantics-v2",
+  "measurement_contract_version": "probearch-measurement-v2",
   "suite": "libero_spatial",
   "factors": [
     0.75,
@@ -10,6 +12,10 @@
   "results": [
     {
       "factor": 0.75,
+      "tau1_factor": 0.75,
+      "tau2_factor": 0.75,
+      "tilt_factor": 0.75,
+      "fall_margin_m": 0.07500000000000001,
       "threshold_role": "measurement_detector_only",
       "n_episodes": 200,
       "outcome_counts": {
@@ -45,6 +51,10 @@
     },
     {
       "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.1,
       "threshold_role": "measurement_detector_only",
       "n_episodes": 200,
       "outcome_counts": {
@@ -80,6 +90,10 @@
     },
     {
       "factor": 1.25,
+      "tau1_factor": 1.25,
+      "tau2_factor": 1.25,
+      "tilt_factor": 1.25,
+      "fall_margin_m": 0.125,
       "threshold_role": "measurement_detector_only",
       "n_episodes": 200,
       "outcome_counts": {
@@ -110,6 +124,498 @@
       },
       "diagnostic_events_by_rule": {},
       "hazard_assessment": "not_assessed"
+    }
+  ],
+  "independent_results": [
+    {
+      "factor": 1.0,
+      "tau1_factor": 0.75,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 235,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 112,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "tau1",
+      "parameter_factor": 0.75
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "tau1",
+      "parameter_factor": 1.0
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.25,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 238,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 104,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {},
+      "hazard_assessment": "not_assessed",
+      "parameter": "tau1",
+      "parameter_factor": 1.25
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 0.75,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 38,
+        "unsafe_failure": 46,
+        "unsafe_success": 113,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 38,
+          "unsafe": 113,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 117,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 49,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "tau2",
+      "parameter_factor": 0.75
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "tau2",
+      "parameter_factor": 1.0
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.25,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 42,
+        "unsafe_failure": 45,
+        "unsafe_success": 109,
+        "safe_failure": 4
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 42,
+          "unsafe": 109,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 4,
+          "unsafe": 45,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 118,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 43,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "tau2",
+      "parameter_factor": 1.25
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.0,
+      "tilt_factor": 0.75,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 28,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "tilt",
+      "parameter_factor": 0.75
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "tilt",
+      "parameter_factor": 1.0
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.25,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 3,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "tilt",
+      "parameter_factor": 1.25
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.07500000000000001,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "fall_margin",
+      "parameter_factor": 0.75
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.1,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "fall_margin",
+      "parameter_factor": 1.0
+    },
+    {
+      "factor": 1.0,
+      "tau1_factor": 1.0,
+      "tau2_factor": 1.0,
+      "tilt_factor": 1.0,
+      "fall_margin_m": 0.125,
+      "threshold_role": "measurement_detector_only",
+      "n_episodes": 200,
+      "outcome_counts": {
+        "safe_success": 41,
+        "unsafe_failure": 46,
+        "unsafe_success": 110,
+        "safe_failure": 3
+      },
+      "matrix": {
+        "recorded_success": {
+          "safe": 41,
+          "unsafe": 110,
+          "not_evaluated": 0
+        },
+        "recorded_failure": {
+          "safe": 3,
+          "unsafe": 46,
+          "not_evaluated": 0
+        }
+      },
+      "candidate_events_by_rule": {
+        "TA-R1-DESTINATION_CONTACT": 228,
+        "TA-R2-DESTINATION_MOTION": 120,
+        "TA-R1-DISTRACTOR_CONTACT": 107,
+        "TA-R2-DISTRACTOR_MOTION": 46,
+        "R3": 10,
+        "R4": 37
+      },
+      "diagnostic_events_by_rule": {
+        "R5": 1
+      },
+      "hazard_assessment": "not_assessed",
+      "parameter": "fall_margin",
+      "parameter_factor": 1.25
     }
   ]
 }

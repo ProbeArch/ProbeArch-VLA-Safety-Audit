@@ -10,12 +10,14 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-
 SHARED = Path(__file__).resolve().parents[1] / "audit" / "shared"
 sys.path.insert(0, str(SHARED))
 
-import safety_scorer as scorer  # noqa: E402
-
+import safety_scorer as scorer
+from contract_versions import (
+    MEASUREMENT_CONTRACT_VERSION,
+    TASK_SEMANTICS_VERSION,
+)
 
 OUTCOMES = ("safe_success", "unsafe_success", "safe_failure", "unsafe_failure", "not_evaluated")
 
@@ -53,7 +55,20 @@ def matrix_for(outcomes: list[str]) -> dict:
     return counts
 
 
-def evaluate(episodes: list[dict], calibration_dir: Path, factor: float, fall_margin: float) -> dict:
+def evaluate(
+    episodes: list[dict],
+    calibration_dir: Path,
+    factor: float,
+    fall_margin: float,
+    *,
+    tau1_factor: float | None = None,
+    tau2_factor: float | None = None,
+    tilt_factor: float | None = None,
+) -> dict:
+    """Evaluate one threshold setting without changing the source episodes."""
+    tau1_factor = factor if tau1_factor is None else tau1_factor
+    tau2_factor = factor if tau2_factor is None else tau2_factor
+    tilt_factor = factor if tilt_factor is None else tilt_factor
     old_fall_margin = scorer.FALL_MARGIN
     scorer.FALL_MARGIN = fall_margin
     outcomes = []
@@ -69,9 +84,9 @@ def evaluate(episodes: list[dict], calibration_dir: Path, factor: float, fall_ma
             )
             variant = {
                 **calibration,
-                "tau1_force_N": float(calibration["tau1_force_N"]) * factor,
-                "tau2_displacement_m": float(calibration["tau2_displacement_m"]) * factor,
-                "tau_tilt_deg": float(calibration["tau_tilt_deg"]) * factor,
+                "tau1_force_N": float(calibration["tau1_force_N"]) * tau1_factor,
+                "tau2_displacement_m": float(calibration["tau2_displacement_m"]) * tau2_factor,
+                "tau_tilt_deg": float(calibration["tau_tilt_deg"]) * tilt_factor,
             }
             generic = scorer.score_episode(episode, variant)
             task_aware = scorer.analyze_episode(
@@ -91,6 +106,10 @@ def evaluate(episodes: list[dict], calibration_dir: Path, factor: float, fall_ma
         scorer.FALL_MARGIN = old_fall_margin
     return {
         "factor": factor,
+        "tau1_factor": tau1_factor,
+        "tau2_factor": tau2_factor,
+        "tilt_factor": tilt_factor,
+        "fall_margin_m": fall_margin,
         "threshold_role": "measurement_detector_only",
         "n_episodes": len(outcomes),
         "outcome_counts": dict(Counter(outcomes)),
@@ -108,12 +127,19 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--factors", nargs="+", type=float, default=[0.75, 1.0, 1.25])
     parser.add_argument("--fall-margin-m", type=float, default=scorer.FALL_MARGIN)
+    parser.add_argument(
+        "--independent",
+        action="store_true",
+        help="also sweep tau1, tau2, tilt, and fall margin one parameter at a time",
+    )
     args = parser.parse_args()
     if any(value <= 0 for value in args.factors) or args.fall_margin_m <= 0:
         raise SystemExit("threshold factors and fall margin must be positive")
     episodes = load_episodes(args.rollouts)
     result = {
         "schema_version": "probearch-threshold-sensitivity-v1",
+        "semantics_version": TASK_SEMANTICS_VERSION,
+        "measurement_contract_version": MEASUREMENT_CONTRACT_VERSION,
         "suite": (episodes[0].get("provenance") or {}).get("suite"),
         "factors": args.factors,
         "fall_margin_m": args.fall_margin_m,
@@ -122,6 +148,35 @@ def main() -> None:
             for factor in args.factors
         ],
     }
+    if args.independent:
+        independent = []
+        for parameter in ("tau1", "tau2", "tilt", "fall_margin"):
+            for factor in args.factors:
+                kwargs = {
+                    "tau1_factor": 1.0,
+                    "tau2_factor": 1.0,
+                    "tilt_factor": 1.0,
+                }
+                margin = args.fall_margin_m
+                if parameter == "tau1":
+                    kwargs["tau1_factor"] = factor
+                elif parameter == "tau2":
+                    kwargs["tau2_factor"] = factor
+                elif parameter == "tilt":
+                    kwargs["tilt_factor"] = factor
+                else:
+                    margin *= factor
+                item = evaluate(
+                    episodes,
+                    args.calibration,
+                    1.0,
+                    margin,
+                    **kwargs,
+                )
+                item["parameter"] = parameter
+                item["parameter_factor"] = factor
+                independent.append(item)
+        result["independent_results"] = independent
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2))

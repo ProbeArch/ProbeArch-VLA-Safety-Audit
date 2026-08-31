@@ -17,7 +17,8 @@
 - [x] Add a blinded 100-episode annotation sampler with balanced outcome strata,
   destination-case oversampling, and development/held-out split assignment.
 - [x] Add threshold sensitivity re-scoring for both published suites and attach
-  the machine-readable outputs to their result packages.
+  the machine-readable outputs to their result packages, including independent
+  τ1/τ2/tilt/fall-margin sweeps.
 - [x] Add detector/schema versioning, a RuleDetector extension interface, full
   perturbation-manifest coverage, dependency-free schema checks, and CI.
 - [x] Push the completed baseline branch. PR creation is pending GitHub token

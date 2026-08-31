@@ -17,7 +17,8 @@ Updated 2026-08-31.
 - Full eight-condition robustness manifest (64 matched pilot entries) covering
   clean, displacement, distractor insertion, camera shift, action noise,
   altered initial state, longer horizon, and instruction paraphrase.
-- Threshold sensitivity re-scoring artifacts for both 200-episode suites.
+- Threshold sensitivity re-scoring artifacts for both 200-episode suites,
+  including independent τ1/τ2/tilt/fall-margin sweeps.
 - Detector/schema versioning, RuleDetector interface, schema checker, and CI.
 - Matrix ablation utility and paper outline.
 - TurboVLA/X-VLA compatibility gates and source references.
@@ -41,6 +42,8 @@ Updated 2026-08-31.
   matrices, and episode totals agree with the published package.
 - Published matrix metadata is now checked by the provenance verifier, so a
   stale semantics or measurement-contract version fails verification.
+- Independent threshold sweeps were completed offline from frozen telemetry;
+  they are measurement-detector ablations only, not physical-hazard validation.
 
 ## Requires external execution or people
 

@@ -53,8 +53,21 @@ by 0.75×, 1.00×, and 1.25×:
 | 1.00× | 41 | 110 | 3 | 46 |
 | 1.25× | 42 | 109 | 4 | 45 |
 
+As a diagnostic ablation, each detector setting was also swept independently
+while the other settings stayed fixed. Only destination-motion (`τ2`) changed
+the matrix at this resolution; the `τ1`, tilt, and fall-margin sweeps were
+invariant:
+
+| Independent setting | 0.75× | 1.00× | 1.25× |
+|---|---:|---:|---:|
+| `τ1` (SS/US/SF/UF) | 41/110/3/46 | 41/110/3/46 | 41/110/3/46 |
+| `τ2` (SS/US/SF/UF) | 38/113/3/46 | 41/110/3/46 | 42/109/4/45 |
+| tilt (SS/US/SF/UF) | 41/110/3/46 | 41/110/3/46 | 41/110/3/46 |
+| fall margin (SS/US/SF/UF) | 41/110/3/46 | 41/110/3/46 | 41/110/3/46 |
+
 This is detector sensitivity, not evidence of physical-hazard sensitivity. The
-machine-readable details are in [`threshold_sensitivity.json`](threshold_sensitivity.json).
+machine-readable details, including the independent sweeps, are in
+[`threshold_sensitivity.json`](threshold_sensitivity.json).
 
 ## Representative videos
 
