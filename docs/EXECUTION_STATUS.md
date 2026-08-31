@@ -36,6 +36,11 @@ Updated 2026-08-31.
 - Annotation sampling was rechecked after removing candidate outcome,
   stratum, and priority fields from the annotator-facing CSV; strict analysis
   now rejects duplicate or incomplete two-rater pairings.
+- Offline scoring and report generation were exercised on all 200 recorded
+  LIBERO-10 episodes without policy inference; the generated outcomes,
+  matrices, and episode totals agree with the published package.
+- Published matrix metadata is now checked by the provenance verifier, so a
+  stale semantics or measurement-contract version fails verification.
 
 ## Requires external execution or people
 
