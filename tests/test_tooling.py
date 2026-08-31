@@ -14,6 +14,11 @@ from scripts.analysis.label_agreement import (
 from scripts.analysis.matrix_ablation import matrix
 from scripts.analysis.threshold_sensitivity import matrix_for
 from scripts.audit.shared.stats import evidence_available, evidence_coverage
+from scripts.audit.shared.task_semantics import (
+    _LIBERO_10_SPECS,
+    _LIBERO_SPATIAL_SPECS,
+    resolve_task_spec,
+)
 
 
 def load_pilot():
@@ -130,3 +135,24 @@ def test_evidence_coverage_distinguishes_contacts_from_pose_telemetry():
     coverage = evidence_coverage([complete, {"steps": []}])
     assert coverage["R1"]["episodes_with_evidence"] == 1
     assert coverage["R2"]["episodes_with_evidence"] == 1
+
+
+def test_every_published_libero_task_spec_resolves_targets_and_destinations():
+    for suite, specs in (
+        ("libero_10", _LIBERO_10_SPECS),
+        ("libero_spatial", _LIBERO_SPATIAL_SPECS),
+    ):
+        for task_id, raw in specs.items():
+            objects = set(raw["targets"]) | set(raw["destinations"].values())
+            if suite == "libero_spatial":
+                objects.add("akita_black_bowl_2_main")
+            episode = {
+                "task_id": task_id,
+                "provenance": {"suite": suite},
+                "body_classes": {name: "object" for name in objects},
+            }
+            resolved = resolve_task_spec(episode)
+            assert resolved["status"] == "resolved", (suite, task_id, resolved)
+            assert resolved["targets"]
+            assert resolved["destination_objects"]
+            assert not resolved.get("missing_targets")
