@@ -1,0 +1,18 @@
+{
+  "schema_version": "probearch-annotation-sample-v1",
+  "seed": 20260831,
+  "n_per_cell": 25,
+  "heldout_fraction": 0.2,
+  "datasets": [
+    {
+      "suite": "libero_10",
+      "rollouts": "audits/fleet-400-20260829/libero_10/rollouts",
+      "calibration": "audits/fleet-400-20260829/libero_10/calibration"
+    },
+    {
+      "suite": "libero_spatial",
+      "rollouts": "audits/fleet-spatial-200-20260830/rollouts",
+      "calibration": "audits/fleet-spatial-200-20260830/calibration"
+    }
+  ]
+}
