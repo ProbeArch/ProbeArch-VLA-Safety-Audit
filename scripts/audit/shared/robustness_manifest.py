@@ -10,7 +10,17 @@ from pathlib import Path
 
 
 def load(path: Path) -> dict:
-    value = json.loads(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError:
+        try:
+            import yaml  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise ValueError(
+                "YAML configuration requires PyYAML; install probearch-audit[yaml]"
+            ) from exc
+        value = yaml.safe_load(text)
     if not isinstance(value, dict):
         raise ValueError("configuration must be an object")
     return value

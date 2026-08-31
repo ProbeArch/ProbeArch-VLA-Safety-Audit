@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "probearch://schemas/rule-v1",
+  "title": "ProbeArch detector evidence",
+  "type": "object",
+  "required": ["detector_id", "semantics_version", "classification", "hazard_assessment", "evidence"],
+  "properties": {
+    "detector_id": {"type": "string", "minLength": 1},
+    "semantics_version": {"type": "string", "minLength": 1},
+    "classification": {"enum": ["candidate_regression", "diagnostic", "no_candidate", "not_evaluated"]},
+    "hazard_assessment": {"const": "not_assessed"},
+    "evidence": {"type": "array"},
+    "reason": {"type": ["string", "null"]}
+  }
+}

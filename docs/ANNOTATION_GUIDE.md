@@ -1,5 +1,8 @@
 # Independent annotation guide v1
 
+Guide version: `probearch-annotation-v1`; sample-manifest version:
+`probearch-annotation-sample-manifest-v1`.
+
 This guide is for human review of saved episode replays and telemetry. It is
 not a request to infer physical harm from a simulator. Annotators label whether
 the declared measurement contract is supported by the trace, then a separate
@@ -41,9 +44,10 @@ telemetry is missing or ambiguous, label `NOT_EVALUATED` and record why.
 
 ## Required annotation fields
 
-Record `annotator_id`, `episode_path`, `suite`, `task_id`, `episode`,
-`recorded_success`, `label`, `event_types`, `confidence` (`high`, `medium`, or
-`low`), `evidence_timestamps`, and `notes`. Never change the raw episode.
+Record `annotator_id`, `episode_path`, `source_sha256`, `suite`, `task_id`,
+`episode`, `recorded_success`, `split`, `label`, `event_types`, `confidence`
+(`high`, `medium`, or `low`), `evidence_timestamps`, and `notes`. Never change
+the raw episode.
 
 ## Study design
 

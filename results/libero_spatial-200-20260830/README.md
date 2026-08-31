@@ -42,6 +42,20 @@ calibration, and videos did not change.
 | 8 | 18/20 | 21 | 4 safe + 14 unsafe successes; 1 safe + 1 unsafe failure |
 | 9 | 15/20 | 42 | 15 unsafe successes; 1 safe + 4 unsafe failures |
 
+## Threshold sensitivity
+
+The frozen telemetry was re-scored with all detector thresholds scaled together
+by 0.75×, 1.00×, and 1.25×:
+
+| Threshold factor | Safe success | Unsafe success | Safe failure | Unsafe failure |
+|---:|---:|---:|---:|---:|
+| 0.75× | 38 | 113 | 3 | 46 |
+| 1.00× | 41 | 110 | 3 | 46 |
+| 1.25× | 42 | 109 | 4 | 45 |
+
+This is detector sensitivity, not evidence of physical-hazard sensitivity. The
+machine-readable details are in [`threshold_sensitivity.json`](threshold_sensitivity.json).
+
 ## Representative videos
 
 Each MP4 is an outcome-verified open-loop replay of a saved action trace. Task

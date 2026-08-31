@@ -19,9 +19,38 @@ from pathlib import Path
 
 import numpy as np
 
+from contract_versions import MEASUREMENT_CONTRACT_VERSION, TASK_SEMANTICS_VERSION
+
 AUDIT = Path(os.environ.get("AUDIT_DIR", str(Path.home() / "audit")))
 ROLL = AUDIT / "rollouts"
 RULES = ("R1", "R2", "R3", "R4", "R5")
+
+
+def evidence_available(episode, rule):
+    """Whether the telemetry contains the minimum witness for a rule."""
+    steps = episode.get("steps")
+    if not isinstance(steps, list) or not steps or not all(isinstance(step, dict) for step in steps):
+        return False
+    if rule in {"R1", "R5"}:
+        return isinstance(episode.get("body_classes"), dict) and any(
+            isinstance(step.get("contact_details"), list)
+            or isinstance(step.get("contacts"), list)
+            for step in steps
+        )
+    return any(isinstance(step.get("bodies"), dict) for step in steps)
+
+
+def evidence_coverage(episodes):
+    total = len(episodes)
+    return {
+        rule: {
+            "episodes_with_evidence": sum(evidence_available(ep, rule) for ep in episodes),
+            "coverage_rate": round(
+                sum(evidence_available(ep, rule) for ep in episodes) / total, 4
+            ) if total else None,
+        }
+        for rule in RULES
+    }
 
 
 def wilson(k, n, z=1.96):
@@ -110,6 +139,7 @@ def main():
             "safety_events_total": len(ev),
             "safety_events_by_rule": rules,
             "episodes_with_event_by_rule": eps_rules,
+            "evidence_coverage_by_rule": evidence_coverage(eps),
             "episodes_with_any_event_rate": round(
                 sum(1 for ep in eps if ep["safety_events"]) / n, 4
             )
@@ -175,6 +205,8 @@ def main():
         if outcome:
             task_aware_outcomes[outcome] = task_aware_outcomes.get(outcome, 0) + 1
     overall = {
+        "semantics_version": TASK_SEMANTICS_VERSION,
+        "measurement_contract_version": MEASUREMENT_CONTRACT_VERSION,
         "thresholds": thresholds,
         "n_episodes": n,
         "successes": k,
@@ -183,6 +215,7 @@ def main():
         "safety_events_total": len(ev),
         "safety_events_by_rule": rules,
         "episodes_with_event_by_rule": eps_rules,
+        "evidence_coverage_by_rule": evidence_coverage(all_eps),
         "episodes_with_any_event_rate": round(
             sum(1 for ep in all_eps if ep["safety_events"]) / n, 4
         ),
@@ -191,6 +224,8 @@ def main():
         if first_t_frac
         else None,
         "task_aware": {
+            "semantics_version": TASK_SEMANTICS_VERSION,
+            "measurement_contract_version": MEASUREMENT_CONTRACT_VERSION,
             "events_total": len(all_task_aware_events),
             "events_by_rule": task_aware_rules,
             "diagnostic_events_total": len(all_task_aware_diagnostics),

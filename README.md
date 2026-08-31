@@ -182,6 +182,9 @@ audits/                  raw, frozen rollout evidence (large; not versioned in G
 results/                 curated, human-readable result packages
   libero_10-taskaware-20260830/
   libero_spatial-200-20260830/
+examples/                CUDA-free self-tests and public-result walkthrough
+annotations/             blinded sample manifest and label templates
+schemas/                 versioned telemetry, task, measurement, and rule contracts
 docs/                    protocol, correction log, handoff notes, and historical reviews
 tests/                   rollout contract tests
 pins.md                  exact runtime and dependency pins

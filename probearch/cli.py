@@ -14,6 +14,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 SHARED = ROOT / "scripts" / "audit" / "shared"
 ROBUSTNESS = SHARED / "robustness_manifest.py"
+SCHEMA_CHECK = ROOT / "scripts" / "analysis" / "check_schemas.py"
 
 
 def _load_config(path: Path) -> dict[str, Any]:
@@ -51,11 +52,24 @@ def _validate_config(config: dict[str, Any]) -> list[str]:
     if not isinstance(conditions, list) or not conditions:
         errors.append("conditions must be a non-empty list")
     else:
+        if any(
+            not isinstance(item, dict) or not item.get("name") or not item.get("type")
+            for item in conditions
+        ):
+            errors.append("each condition must have a non-empty name and type")
         names = [item.get("name") for item in conditions if isinstance(item, dict)]
         if len(names) != len(set(names)):
             errors.append("condition names must be unique")
         if "clean" not in names:
             errors.append("conditions must include a clean reference")
+    tasks = config.get("tasks")
+    if not isinstance(tasks, dict) or not tasks or not any(tasks.values()):
+        errors.append("tasks must contain at least one non-empty group")
+    elif any(
+        not isinstance(values, list) or any(not isinstance(task, int) for task in values)
+        for values in tasks.values()
+    ):
+        errors.append("task groups must be lists of integer task ids")
     return errors
 
 
@@ -71,6 +85,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate = sub.add_parser("validate-config", help="validate a YAML/JSON config")
     validate.add_argument("path", type=Path)
+
+    sub.add_parser("check-schemas", help="check the repository JSON schema contracts")
 
     calibrate = sub.add_parser("calibrate", help="run task-scoped calibration")
     calibrate.add_argument("--suite", required=True)
@@ -114,6 +130,8 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(f"config OK: {args.path}")
         return 0
+    if args.command == "check-schemas":
+        return _run(SCHEMA_CHECK)
     if args.command == "calibrate":
         return _run(
             SHARED / "calibrate.py",

@@ -36,6 +36,7 @@ from pathlib import Path
 import numpy as np
 
 from task_semantics import analyze_episode
+from contract_versions import MEASUREMENT_CONTRACT_VERSION, TASK_SEMANTICS_VERSION
 
 AUDIT = Path(os.environ.get("AUDIT_DIR", str(Path.home() / "audit")))
 ROLL = AUDIT / "rollouts"
@@ -551,6 +552,8 @@ def main(output_audit=None):
         shutil.copy2(root_manifest, root_manifest_target)
     tasks = sorted(p for p in ROLL.iterdir() if p.is_dir())
     threshold_summary = {
+        "semantics_version": TASK_SEMANTICS_VERSION,
+        "measurement_contract_version": MEASUREMENT_CONTRACT_VERSION,
         "fall_margin_m": FALL_MARGIN,
         "mode": "task_scoped" if TASK_CALIBRATIONS else "single_file_legacy",
         "threshold_role": "measurement_detector_only",

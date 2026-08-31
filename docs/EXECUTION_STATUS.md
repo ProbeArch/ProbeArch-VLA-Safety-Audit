@@ -9,8 +9,16 @@ Updated 2026-08-31.
 - `probearch` package/CLI and adapter interfaces.
 - Telemetry, task-spec, and measurement JSON schemas.
 - Annotation guide and blank label template.
+- Reproducible 100-episode blinded annotation manifest: 25 episodes per
+  primary matrix cell, 80/20 development/held-out split, and 50 destination-
+  related priority cases.
 - 40-episode RTX-3050 robustness-pilot configuration and matched manifest
   generator.
+- Full eight-condition robustness manifest (64 matched pilot entries) covering
+  clean, displacement, distractor insertion, camera shift, action noise,
+  altered initial state, longer horizon, and instruction paraphrase.
+- Threshold sensitivity re-scoring artifacts for both 200-episode suites.
+- Detector/schema versioning, RuleDetector interface, schema checker, and CI.
 - Matrix ablation utility and paper outline.
 - TurboVLA/X-VLA compatibility gates and source references.
 

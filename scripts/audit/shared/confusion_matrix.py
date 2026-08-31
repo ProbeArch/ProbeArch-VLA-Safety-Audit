@@ -17,6 +17,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from contract_versions import MEASUREMENT_CONTRACT_VERSION, TASK_SEMANTICS_VERSION
+
 
 AUDIT = Path(os.environ.get("AUDIT_DIR", str(Path.home() / "audit")))
 ROLL = AUDIT / "rollouts"
@@ -75,6 +77,8 @@ def build_matrix(episodes):
         }
     return {
         "schema_version": "probearch-success-task-aware-matrix-v2",
+        "semantics_version": TASK_SEMANTICS_VERSION,
+        "measurement_contract_version": MEASUREMENT_CONTRACT_VERSION,
         "interpretation": (
             "Success-by-task-aware-safety contingency table; no independent safety labels "
             "are available, so this is not a validated ML confusion matrix. "

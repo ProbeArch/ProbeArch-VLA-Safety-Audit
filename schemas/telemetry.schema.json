@@ -3,8 +3,9 @@
   "$id": "probearch://schemas/telemetry-v1",
   "title": "ProbeArch episode telemetry",
   "type": "object",
-  "required": ["task", "task_id", "ep_ix", "success", "steps", "provenance"],
+  "required": ["harness_schema_version", "task", "task_id", "ep_ix", "success", "steps", "provenance"],
   "properties": {
+    "harness_schema_version": {"const": "probearch-telemetry-v0.4"},
     "task": {"type": "string"},
     "task_id": {"type": "integer", "minimum": 0},
     "ep_ix": {"type": "integer", "minimum": 0},

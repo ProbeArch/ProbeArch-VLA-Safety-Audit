@@ -1,0 +1,28 @@
+name: ProbeArch checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install package and test dependencies
+        run: python -m pip install -e . pytest numpy matplotlib ruff
+      - name: Run tests
+        run: python -m pytest -q
+      - name: Check schemas and configs
+        run: |
+          python -m probearch check-schemas
+          python -m probearch validate-config configs/robustness_pilot.yaml
+          python -m probearch validate-config configs/robustness_full.json
+      - name: Compile and lint
+        run: |
+          python -m compileall -q probearch scripts tests
+          ruff check probearch scripts tests --select F
+          git diff --check

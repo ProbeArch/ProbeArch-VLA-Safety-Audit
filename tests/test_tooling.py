@@ -1,9 +1,15 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from probearch.cli import _validate_config
 from scripts.audit.shared.robustness_manifest import build
+from scripts.analysis.check_schemas import check_schema
+from scripts.analysis.label_agreement import binary_metrics
 from scripts.analysis.matrix_ablation import matrix
+from scripts.analysis.threshold_sensitivity import matrix_for
+from scripts.audit.shared.stats import evidence_available, evidence_coverage
 
 
 def load_pilot():
@@ -26,6 +32,13 @@ def test_robustness_manifest_preserves_matched_pairs():
     assert all(pair["conditions"][0] == "clean" for pair in manifest["pairs"])
 
 
+def test_full_robustness_manifest_covers_all_declared_conditions():
+    config = json.loads(Path("configs/robustness_full.json").read_text(encoding="utf-8"))
+    manifest = build(config)
+    assert len(manifest["conditions"]) == 8
+    assert len(manifest["pairs"]) * len(manifest["conditions"]) == 64
+
+
 def test_matrix_ablation_keeps_diagnostics_separate():
     episodes = [
         {
@@ -37,3 +50,54 @@ def test_matrix_ablation_keeps_diagnostics_separate():
     ]
     assert matrix(episodes, "primary")["counts"]["recorded_success"]["safe"] == 1
     assert matrix(episodes, "include_diagnostics")["counts"]["recorded_success"]["unsafe"] == 1
+
+
+def test_threshold_sensitivity_matrix_tracks_not_evaluated():
+    result = matrix_for(["safe_success", "unsafe_failure", "not_evaluated"])
+    assert result["recorded_success"] == {"safe": 1, "unsafe": 0, "not_evaluated": 0}
+    assert result["recorded_failure"] == {"safe": 0, "unsafe": 1, "not_evaluated": 1}
+
+
+def test_label_metrics_report_unsafe_precision_recall_and_coverage():
+    predicted = {"a": "UNSAFE_SUCCESS", "b": "SAFE_FAILURE", "c": "UNSAFE_FAILURE"}
+    reference = {"a": "UNSAFE_SUCCESS", "b": "UNSAFE_FAILURE", "c": "SAFE_FAILURE"}
+    result = binary_metrics(predicted, reference)
+    assert result["evaluated_episodes"] == 3
+    assert result["confusion"] == {
+        "true_positive": 1,
+        "false_positive": 1,
+        "false_negative": 1,
+        "true_negative": 0,
+    }
+    assert result["precision"] == pytest.approx(0.5)
+    assert result["recall"] == pytest.approx(0.5)
+
+
+def test_versioned_json_schemas_have_consistent_required_fields():
+    for path in Path("schemas").glob("*.schema.json"):
+        assert check_schema(path) == []
+
+
+def test_annotation_manifest_is_blinded_and_balanced():
+    import csv
+
+    with Path("annotations/sample_manifest.csv").open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 100
+    assert {row["stratum"] for row in rows} == {
+        "success/safe", "success/unsafe", "failure/safe", "failure/unsafe",
+    }
+    assert all("candidate" not in row for row in rows)
+    assert {row["split"] for row in rows} == {"development", "heldout"}
+
+
+def test_evidence_coverage_distinguishes_contacts_from_pose_telemetry():
+    complete = {
+        "body_classes": {"robot": "robot", "object": "object"},
+        "steps": [{"bodies": {}, "contact_details": []}],
+    }
+    assert evidence_available(complete, "R1")
+    assert evidence_available(complete, "R2")
+    coverage = evidence_coverage([complete, {"steps": []}])
+    assert coverage["R1"]["episodes_with_evidence"] == 1
+    assert coverage["R2"]["episodes_with_evidence"] == 1

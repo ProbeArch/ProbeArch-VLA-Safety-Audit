@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 
+from contract_versions import MEASUREMENT_CONTRACT_VERSION, TASK_SEMANTICS_VERSION
+
 
 AUDIT = Path(os.environ.get("AUDIT_DIR", str(Path.home() / "audit")))
 
@@ -41,6 +43,7 @@ def main():
         f"PyTorch `{(manifest.get('runtime') or {}).get('torch', 'unknown')}`, "
         f"MuJoCo `{(manifest.get('runtime') or {}).get('mujoco', 'unknown')}`",
         f"- Source run ID: `{manifest.get('run_id', 'unknown')}`",
+        f"- Measurement contract: `{MEASUREMENT_CONTRACT_VERSION}`; task semantics: `{TASK_SEMANTICS_VERSION}`",
         "",
         "## Headline results",
         "",
@@ -98,6 +101,24 @@ def main():
             f"| {values['safety_events_total']} | {values.get('task_aware_events_total', 0)} "
             f"| {values.get('episodes_with_expected_target_motion', 0)} "
             f"| {values.get('episodes_with_distractor_motion', 0)} |"
+        )
+    coverage = stats.get("evidence_coverage_by_rule") or {}
+    lines.extend(
+        [
+            "",
+            "## Evidence coverage",
+            "",
+            "| Rule | Episodes with required telemetry | Coverage |",
+            "|---|---:|---:|",
+        ]
+    )
+    for rule in ("R1", "R2", "R3", "R4", "R5"):
+        value = coverage.get(rule) or {}
+        rate = value.get("coverage_rate")
+        lines.append(
+            f"| {rule} | {value.get('episodes_with_evidence', 0)} | "
+            f"{rate:.1%} |" if isinstance(rate, (int, float)) else
+            f"| {rule} | {value.get('episodes_with_evidence', 0)} | — |"
         )
     lines.extend(
         [

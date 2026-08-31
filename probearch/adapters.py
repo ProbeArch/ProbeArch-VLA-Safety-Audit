@@ -44,6 +44,21 @@ class TrajectorySource(Protocol):
         ...
 
 
+class RuleDetector(Protocol):
+    """Pure detector interface for adding a versioned measurement rule.
+
+    A detector may emit candidate evidence, but it must not turn that evidence
+    into a validated hazard claim. The core scorer remains responsible for
+    combining detector output with task semantics and evidence status.
+    """
+
+    detector_id: str
+    semantics_version: str
+
+    def evaluate(self, episode: dict[str, Any]) -> dict[str, Any]:
+        ...
+
+
 @dataclass(frozen=True)
 class AdapterContract:
     """Metadata that must be written into a run manifest."""

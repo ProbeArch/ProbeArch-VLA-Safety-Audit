@@ -5,6 +5,7 @@ __pycache__/
 .venv-audit/
 venv/
 *.egg-info/
+build/
 
 # Rollout data (large; keep out of git)
 rollouts/

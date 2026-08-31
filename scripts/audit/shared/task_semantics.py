@@ -9,6 +9,10 @@ remains ``not_assessed`` until operational limits are independently specified.
 
 import math
 
+from contract_versions import MEASUREMENT_CONTRACT_VERSION, TASK_SEMANTICS_VERSION
+
+SEMANTICS_VERSION = TASK_SEMANTICS_VERSION
+
 
 _LIBERO_10_SPECS = {
     0: {
@@ -122,6 +126,7 @@ def resolve_task_spec(ep):
     objects = _object_names(ep)
     if raw is None:
         return {
+            "semantics_version": SEMANTICS_VERSION,
             "suite": suite,
             "task_id": task_id,
             "status": "unresolved",
@@ -142,6 +147,7 @@ def resolve_task_spec(ep):
         }
     )
     return {
+        "semantics_version": SEMANTICS_VERSION,
         "suite": suite,
         "task_id": task_id,
         "status": "resolved" if not missing else "incomplete",
@@ -213,6 +219,8 @@ def analyze_episode(ep, calibration, measurement_events, contact_iter, r1_eligib
         elif not isinstance(steps[0], dict):
             reasons.append("initial telemetry step is malformed")
         return {
+            "semantics_version": SEMANTICS_VERSION,
+            "measurement_contract_version": MEASUREMENT_CONTRACT_VERSION,
             "spec": spec,
             "evidence_status": "not_evaluated",
             "evidence_reasons": reasons,
@@ -223,6 +231,12 @@ def analyze_episode(ep, calibration, measurement_events, contact_iter, r1_eligib
             },
             "operational_limits": None,
             "hazard_assessment": "not_assessed",
+            "evidence_quality": {
+                "status": "insufficient",
+                "coverage": 0.0,
+                "confidence": "not_evaluated",
+                "reason": "; ".join(reasons),
+            },
             "expected_target_motion": [],
             "destination_motion_measurements": [],
             "distractor_motion_measurements": [],
@@ -284,6 +298,8 @@ def analyze_episode(ep, calibration, measurement_events, contact_iter, r1_eligib
     missing_initial_targets = sorted(target_names - set(initial))
     if missing_initial_targets:
         return {
+            "semantics_version": SEMANTICS_VERSION,
+            "measurement_contract_version": MEASUREMENT_CONTRACT_VERSION,
             "spec": spec,
             "evidence_status": "not_evaluated",
             "evidence_reasons": [
@@ -297,6 +313,13 @@ def analyze_episode(ep, calibration, measurement_events, contact_iter, r1_eligib
             },
             "operational_limits": None,
             "hazard_assessment": "not_assessed",
+            "evidence_quality": {
+                "status": "insufficient",
+                "coverage": 0.0,
+                "confidence": "not_evaluated",
+                "reason": "initial object pose missing for target(s): "
+                + ", ".join(missing_initial_targets),
+            },
             "expected_target_motion": [],
             "destination_motion_measurements": [],
             "distractor_motion_measurements": [],
@@ -441,6 +464,8 @@ def analyze_episode(ep, calibration, measurement_events, contact_iter, r1_eligib
     unsafe = bool(semantic_events)
     success = bool(ep.get("success"))
     return {
+        "semantics_version": SEMANTICS_VERSION,
+        "measurement_contract_version": MEASUREMENT_CONTRACT_VERSION,
         "spec": spec,
         "evidence_status": "evaluated",
         "evidence_reasons": [],
@@ -451,6 +476,12 @@ def analyze_episode(ep, calibration, measurement_events, contact_iter, r1_eligib
         },
         "operational_limits": None,
         "hazard_assessment": "not_assessed",
+        "evidence_quality": {
+            "status": "complete",
+            "coverage": 1.0,
+            "confidence": "calibrated_measurement_candidate",
+            "reason": None,
+        },
         "expected_target_motion": expected_target_motion,
         "destination_motion_measurements": destination_motion,
         "distractor_motion_measurements": distractor_motion,

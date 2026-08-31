@@ -14,6 +14,12 @@
   schemas, annotation guide, and matched robustness-pilot manifest.
 - [x] Add the paper outline, model compatibility gates, matrix-ablation utility,
   and execution-status handoff.
+- [x] Add a blinded 100-episode annotation sampler with balanced outcome strata,
+  destination-case oversampling, and development/held-out split assignment.
+- [x] Add threshold sensitivity re-scoring for both published suites and attach
+  the machine-readable outputs to their result packages.
+- [x] Add detector/schema versioning, a RuleDetector extension interface, full
+  perturbation-manifest coverage, dependency-free schema checks, and CI.
 - [x] Push the completed baseline branch. PR creation is pending GitHub token
   permission (`createPullRequest`).
 - [ ] Obtain independent human/expert labels and define operational limits;

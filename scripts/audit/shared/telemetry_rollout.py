@@ -1107,6 +1107,7 @@ def main():
                 for k in range(N):
                     ep = episode_id(args.episode_offset, pair, k, N)
                     record = {
+                        "harness_schema_version": HARNESS_SCHEMA_VERSION,
                         "provenance": provenance,
                         "task": key,
                         "task_language": raw_env.task_description,

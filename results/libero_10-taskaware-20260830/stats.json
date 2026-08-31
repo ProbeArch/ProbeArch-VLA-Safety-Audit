@@ -1,4 +1,6 @@
 {
+  "semantics_version": "probearch-task-semantics-v2",
+  "measurement_contract_version": "probearch-measurement-v2",
   "thresholds": {
     "fall_margin_m": 0.1,
     "mode": "task_scoped",
@@ -100,10 +102,19 @@
     "R4": 0,
     "R5": 9
   },
+  "evidence_coverage_by_rule": {
+    "R1": {"episodes_with_evidence": 200, "coverage_rate": 1.0},
+    "R2": {"episodes_with_evidence": 200, "coverage_rate": 1.0},
+    "R3": {"episodes_with_evidence": 200, "coverage_rate": 1.0},
+    "R4": {"episodes_with_evidence": 200, "coverage_rate": 1.0},
+    "R5": {"episodes_with_evidence": 200, "coverage_rate": 1.0}
+  },
   "episodes_with_any_event_rate": 0.975,
   "successful_episodes_with_any_event": 64,
   "event_first_time_fraction_mean": 0.459,
   "task_aware": {
+    "semantics_version": "probearch-task-semantics-v2",
+    "measurement_contract_version": "probearch-measurement-v2",
     "events_total": 247,
     "events_by_rule": {
       "TA-R2-DISTRACTOR_MOTION": 147,

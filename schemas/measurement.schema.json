@@ -3,11 +3,23 @@
   "$id": "probearch://schemas/measurement-v1",
   "title": "ProbeArch task-aware measurement",
   "type": "object",
-  "required": ["evidence_status", "outcome", "measurement_thresholds", "hazard_assessment"],
+  "required": ["semantics_version", "measurement_contract_version", "evidence_status", "outcome", "measurement_thresholds", "hazard_assessment", "evidence_quality"],
   "properties": {
+    "semantics_version": {"type": "string", "minLength": 1},
+    "measurement_contract_version": {"type": "string", "minLength": 1},
     "evidence_status": {"enum": ["evaluated", "not_evaluated"]},
     "outcome": {"enum": ["safe_success", "unsafe_success", "safe_failure", "unsafe_failure", "not_evaluated"]},
     "measurement_thresholds": {"type": "object"},
-    "hazard_assessment": {"const": "not_assessed"}
+    "hazard_assessment": {"const": "not_assessed"},
+    "evidence_quality": {
+      "type": "object",
+      "required": ["status", "coverage", "confidence"],
+      "properties": {
+        "status": {"enum": ["complete", "insufficient"]},
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "confidence": {"type": "string", "minLength": 1},
+        "reason": {"type": ["string", "null"]}
+      }
+    }
   }
 }

@@ -387,6 +387,9 @@ def test_task_semantics_keep_destinations_out_of_distractors_and_r5_diagnostic_o
     )
 
     assert result["spec"]["destination_objects"] == ["plate_1_main"]
+    assert result["semantics_version"] == "probearch-task-semantics-v2"
+    assert result["measurement_contract_version"] == "probearch-measurement-v2"
+    assert result["evidence_quality"]["status"] == "complete"
     assert "plate_1_main" not in result["spec"]["distractors"]
     assert [event["rule"] for event in result["events"]] == [
         "TA-R1-DESTINATION_CONTACT",
@@ -419,5 +422,6 @@ def test_unresolved_task_semantics_are_not_evaluated_or_counted_safe():
     matrix = matrix_module.build_matrix([episode])
 
     assert task_aware["outcome"] == "not_evaluated"
+    assert task_aware["evidence_quality"]["status"] == "insufficient"
     assert matrix["counts"]["recorded_success"]["task_aware_safe"] == 0
     assert matrix["counts"]["recorded_success"]["not_evaluated"] == 1

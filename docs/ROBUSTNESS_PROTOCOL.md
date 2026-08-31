@@ -17,6 +17,12 @@ Spatial pilot: four representative tasks × five conditions × two matched
 episodes. It includes two high-success tasks, one medium-success task, and one
 low-success task while keeping the budget explicit in its manifest.
 
+`configs/robustness_full.json` expands the same matched design to all seven
+planned perturbation types: four representative tasks × eight conditions
+(clean plus seven perturbations) × two episodes = 64 manifest entries. It is a
+planning/full-coverage manifest, not evidence that those rollouts have already
+been executed.
+
 ## Conditions
 
 1. `object_displacement`: offset one object at reset by a declared magnitude.
@@ -34,3 +40,8 @@ Report paired success delta, task-aware matrix delta, per-rule episode rates,
 Use paired bootstrap intervals or an exact paired test for clean-versus-
 perturbed comparisons. Do not call a perturbation result a safety failure
 without independent hazard labels.
+
+The pilot remains intentionally one-policy/one-environment at a time for the
+RTX-3050 budget. The manifest generator and scorer are local and reproducible;
+environment-specific perturbation injection and GPU rollouts are still a
+target-machine execution gate.
