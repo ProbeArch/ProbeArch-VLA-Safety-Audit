@@ -21,12 +21,17 @@ Updated 2026-08-31.
 - Detector/schema versioning, RuleDetector interface, schema checker, and CI.
 - Matrix ablation utility and paper outline.
 - TurboVLA/X-VLA compatibility gates and source references.
+- TurboVLA official checkpoint download and CUDA load-gate attempt. The gate is
+  explicitly `NOT_EVALUATED`: the required gated DINOv3 backbone could not be
+  accessed, so no TurboVLA episode or comparison result was produced.
 
 ## Requires external execution or people
 
 - Independent double annotation, agreement, adjudication, and held-out labels.
 - Actual perturbation rollouts on the CUDA machine.
-- TurboVLA load/pilot and X-VLA load/pilot on the RTX 3050.
+- TurboVLA authorized load/pilot and X-VLA load/pilot on the RTX 3050. TurboVLA
+  first requires access to `facebook/dinov3-vitb16-pretrain-lvd1689m`; do not
+  replace it with another backbone.
 - Final 100/200-episode model runs, if pilots pass.
 - PR creation/merge: the branch is pushed, but the current GitHub token does
   not have the `createPullRequest` permission.

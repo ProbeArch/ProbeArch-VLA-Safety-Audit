@@ -30,6 +30,25 @@ The RTX 3050 may not fit the reference stack and should be treated as an
 unknown until measured. A failed load is `NOT_EVALUATED`, not a substitute
 checkpoint.
 
+### Current gate result (2026-08-31)
+
+The official source was cloned at revision
+`c7c2ba9f94ef3a734c5033be96ef3f3f5a5f3c18`. The official LIBERO-Spatial
+checkpoint was downloaded from the [TurboVLA model repository](https://huggingface.co/H-EmbodVis/TurboVLA)
+and verified locally with SHA-256
+`a7c3faa825a6c68d365df0647c39845c3a7bb553e1e24be3729b76de22f703fa`.
+CUDA was available on an NVIDIA GeForce RTX 3050 Laptop GPU with 4.0 GB
+reported VRAM, and the official evaluator reached the policy/DINO encoder
+construction path.
+
+The load gate then stopped before full policy construction because the required
+`facebook/dinov3-vitb16-pretrain-lvd1689m` backbone is a gated Hugging Face
+repository and this environment has no authorization. No TurboVLA episode was
+run and no TurboVLA result is included in the baseline comparison. Status:
+`NOT_EVALUATED` pending an authorized Hugging Face account/token and a rerun of
+the same pinned command. The downloaded TurboVLA checkpoint is retained only
+as a provenance/load-test asset under the ignored `.verification/` directory.
+
 ## X-VLA
 
 The [official X-VLA repository](https://github.com/2toinf/X-VLA) lists
@@ -48,6 +67,13 @@ Before episodes:
 - run a one-task stock-parity rollout;
 - keep X-VLA in a separate environment if dependencies conflict;
 - include it in pooled comparisons only if the protocol matches exactly.
+
+### Current gate result (2026-08-31)
+
+Not started. The official repository currently resolves to revision
+`6bc2513f5f1cbec715cc668b414392a6cae5c671`; checkpoint and processor hashes
+still need to be pinned before a load test. X-VLA remains outside all reported
+baseline results.
 
 ## Comparison rule
 
