@@ -301,3 +301,29 @@ status/wording corrections made here are:
   script self-tests, and the synthetic smoke gate pass. The target LIBERO/MuJoCo
   calibration and fleet run remain required; cached local LeRobot is not runnable due
   an unrelated dataclass construction error.
+
+## TS1 — task-semantics correction (2026-08-31, post-collection offline analysis)
+
+An end-to-end review found that the first task-aware interpretation built its
+distractor set from every object other than the commanded target. This wrongly
+included commanded destination objects such as plates and baskets. It also let
+post-hoc R5 robot self-contact flip the primary task-aware outcome despite R5
+being documented as diagnostic-only.
+
+The interpreter now excludes both target and destination objects from the
+distractor set, treats target–destination placement contact as expected, names
+destination motion and direct robot–destination contact separately as candidate
+regressions, excludes R5 from the primary outcome, and marks unresolved/missing
+task evidence as `NOT_EVALUATED` rather than safe. No raw rollout, calibration
+profile, task-success label, run manifest, or video was changed.
+
+Corrected matrices:
+
+| Suite | Safe success | Unsafe success | Safe failure | Unsafe failure |
+|---|---:|---:|---:|---:|
+| LIBERO-10 | 45 | 19 | 43 | 93 |
+| LIBERO-Spatial | 41 | 110 | 3 | 46 |
+
+The initially published task-aware JSON, reports, and matrix figures are
+preserved under each package's `superseded-task-semantics-v1/` directory and
+must not be cited as current results.

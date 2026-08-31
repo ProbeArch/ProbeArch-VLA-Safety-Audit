@@ -1,5 +1,12 @@
 # Handoff — ProbeArch VLA Safety Audit harness (v0.2 + audit-fix campaign)
 
+> **Current status (2026-08-31):** This handoff is retained as historical context.
+> The required target-machine reruns have since completed: 200 LIBERO-10 and 200
+> LIBERO-Spatial episodes. All 400 source hashes and manifests verify. TS1 later
+> corrected the offline task semantics (destination objects are not distractors;
+> R5 is diagnostic-only). Current results are in `results/`; the older status and
+> “rerun required” instructions below are superseded.
+
 **Branch:** `fix/harness-v0.2` (uncommitted until this handoff's commit; PR #? against `main`)
 **Status:** instrumentation defects fixed and statically verified; **results remain RETRACTED until a validation run on the target machine.**
 

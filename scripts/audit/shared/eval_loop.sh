@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The ProbeArch eval loop: smoke gate -> calibrate -> rollouts -> score -> stats -> plots.
+# The ProbeArch eval loop: gate -> calibrate -> rollouts -> score -> publish -> verify.
 # Every pin in pins.md must hold before this produces numbers.
 #
 # Usage:  scripts/audit/shared/eval_loop.sh [SUITE] [N_PAIRS] [N_ENVS] [--resume|--force]
@@ -48,6 +48,17 @@ NUM_STEPS="${NUM_STEPS:-1}"
 N_ACTION_STEPS="${N_ACTION_STEPS:-1}"
 EPISODE_OFFSET="${EPISODE_OFFSET:-0}"
 FORCE=0
+
+assert_safe_audit_dir() {
+  local resolved home_resolved repo_resolved
+  resolved="$($PYTHON_BIN -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve())' "$AUDIT_DIR")"
+  home_resolved="$($PYTHON_BIN -c 'import pathlib; print(pathlib.Path.home().resolve())')"
+  repo_resolved="$($PYTHON_BIN -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve())' "$REPO")"
+  if [[ -z "$resolved" || "$resolved" == "/" || "$resolved" == "$home_resolved" || "$resolved" == "$repo_resolved" ]]; then
+    echo "Refusing unsafe AUDIT_DIR: $resolved" >&2
+    exit 2
+  fi
+}
 for arg in "$@"; do
   case "$arg" in
     --resume) RESUME=1 ;;
@@ -127,6 +138,7 @@ case "$SUITE" in
 esac
 
 mkdir -p "$AUDIT_DIR"
+assert_safe_audit_dir
 ROLLOUTS_DIR="$AUDIT_DIR/rollouts"
 CALIBRATION_DIR="$AUDIT_DIR/calibration"
 
@@ -253,7 +265,7 @@ for task_id in task_ids:
     )
 payload = {"schema_version": "probearch-calibration-index-v1", "suite": suite, "profiles": profiles}
 temporary = directory / f".index.{os.getpid()}.tmp"
-temporary.write_text(json.dumps(payload, indent=2) + "\n")
+temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 os.replace(temporary, directory / "index.json")
 PY
 fi
@@ -328,9 +340,11 @@ PY
 # 3) safety scoring (pre-registered rules, positive-control validated)
 "$PYTHON_BIN" "$REPO/scripts/audit/shared/safety_scorer.py"
 
-# 4) aggregate stats + figures
+# 4) aggregate stats, matrix, report, and figures
 "$PYTHON_BIN" "$REPO/scripts/audit/shared/stats.py"
 "$PYTHON_BIN" "$REPO/scripts/audit/shared/plots.py"
+"$PYTHON_BIN" "$REPO/scripts/audit/shared/confusion_matrix.py"
+"$PYTHON_BIN" "$REPO/scripts/audit/shared/report.py"
 
 # 5) representative visual evidence. Replay uses saved actions, not policy
 #    inference, and refuses to index a video if its outcome differs from the
@@ -339,5 +353,13 @@ if [[ "$GENERATE_VIDEOS" == "1" ]]; then
   "$PYTHON_BIN" "$REPO/scripts/audit/shared/render_videos.py" \
     --audit-dir "$AUDIT_DIR" --force
 fi
+
+# 6) freeze the exact scored episodes and verify every aggregate against the
+#    frozen source before declaring the run complete.
+"$PYTHON_BIN" "$REPO/scripts/audit/shared/dataset_freeze.py" --audit-dir "$AUDIT_DIR"
+"$PYTHON_BIN" "$REPO/scripts/audit/shared/verify_audit.py" \
+  --result-dir "$AUDIT_DIR" \
+  --rollouts-dir "$ROLLOUTS_DIR" \
+  --video-source-rollouts "$ROLLOUTS_DIR"
 
 echo "== $(date) == eval done -> $AUDIT_DIR"

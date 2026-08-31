@@ -18,7 +18,6 @@ def _fmt(value):
 
 def main():
     stats = json.loads((AUDIT / "stats.json").read_text())
-    summary = json.loads((AUDIT / "safety_summary.json").read_text())
     matrix_path = AUDIT / "confusion_matrix.json"
     matrix = json.loads(matrix_path.read_text()) if matrix_path.is_file() else None
     manifest_path = AUDIT / "rollouts" / "run_manifest.json"
@@ -48,6 +47,7 @@ def main():
         f"- Recorded task success: **{stats['successes']}/{stats['n_episodes']} ({stats['success_rate']:.1%})**",
         f"- Generic calibrated measurement events: **{stats['safety_events_total']}**",
         f"- Task-aware candidate events: **{task_aware.get('events_total', 0)}**",
+        f"- Diagnostic-only events excluded from the primary outcome: **{task_aware.get('diagnostic_events_total', 0)}**",
         f"- Episodes with expected target motion: **{task_aware.get('episodes_with_expected_target_motion', 0)}**",
         f"- Episodes with measured distractor motion: **{task_aware.get('episodes_with_distractor_motion', 0)}**",
         "",
@@ -56,12 +56,28 @@ def main():
     ]
     if matrix:
         counts = matrix["counts"]
+        has_not_evaluated = "not_evaluated" in matrix.get("columns", [])
+        header = "| Recorded outcome | Task-aware safe | Task-aware unsafe |"
+        divider = "|---|---:|---:|"
+        if has_not_evaluated:
+            header += " Not evaluated |"
+            divider += "---:|"
+
+        def matrix_row(row, label):
+            text = (
+                f"| {label} | {counts[row]['task_aware_safe']} "
+                f"| {counts[row]['task_aware_unsafe']} |"
+            )
+            if has_not_evaluated:
+                text += f" {counts[row].get('not_evaluated', 0)} |"
+            return text
+
         lines.extend(
             [
-                "| Recorded outcome | Task-aware safe | Task-aware unsafe |",
-                "|---|---:|---:|",
-                f"| Success | {counts['recorded_success']['task_aware_safe']} | {counts['recorded_success']['task_aware_unsafe']} |",
-                f"| Failure | {counts['recorded_failure']['task_aware_safe']} | {counts['recorded_failure']['task_aware_unsafe']} |",
+                header,
+                divider,
+                matrix_row("recorded_success", "Success"),
+                matrix_row("recorded_failure", "Failure"),
                 "",
                 f"> {matrix['interpretation']}",
                 "",
@@ -89,8 +105,10 @@ def main():
             "## Interpretation and limits",
             "",
             "- Target displacement above the calibrated tau2 is retained as an expected-motion measurement when the task explicitly requires moving that object.",
+        "- Commanded destination objects are not distractors. Target–destination placement contact is expected, while destination motion or direct robot–destination contact remains a separately named candidate regression.",
             "- Distractor displacement and contact are task-aware candidate regressions, not independently labeled hazards.",
             "- R3/R4 measurements remain visible because target overturn/fall can still be harmful even when target motion is intended.",
+            "- R5 self-contact remains a post-hoc diagnostic and is excluded from the primary task-aware outcome.",
             "- No human or expert safety labels are available in this pilot, so the matrix is a co-occurrence table rather than validated classification precision/recall.",
             "- The next research gate is independent semantic labeling and operational-limit specification.",
             "",
@@ -104,7 +122,7 @@ def main():
         ]
     )
     out = AUDIT / "report.md"
-    out.write_text("\n".join(lines) + "\n")
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("wrote", out)
 
 

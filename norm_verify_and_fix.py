@@ -255,7 +255,8 @@ Why partial improvement is consistent:
                     contact_force[efc_id] = efc_force[efc_id]
             if len(contact_force) > 0:
                 efc_maxF = float(np.max(np.abs(contact_force)))
-        except:
+        except Exception as exc:
+            print(f"warning: could not inspect contact-force arrays: {exc}")
             pass
 
         grip_act = float(raw_np.flatten()[6])

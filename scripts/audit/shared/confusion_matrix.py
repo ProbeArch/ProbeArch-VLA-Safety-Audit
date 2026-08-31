@@ -1,4 +1,4 @@
-"""Build the task-aware success/safety 2x2 matrix.
+"""Build the task-aware success/safety matrix.
 
 This is a contingency table between recorded task success and the task-aware
 measurement view.  It is intentionally labelled as such: without independent
@@ -56,10 +56,14 @@ def load_episodes():
 
 def build_matrix(episodes):
     rows = ("recorded_success", "recorded_failure")
-    columns = ("task_aware_safe", "task_aware_unsafe")
+    columns = ("task_aware_safe", "task_aware_unsafe", "not_evaluated")
     matrix = {row: {column: 0 for column in columns} for row in rows}
     for episode in episodes:
         row = "recorded_success" if episode.get("success") else "recorded_failure"
+        task_aware = episode.get("task_aware") or {}
+        if task_aware.get("evidence_status", "evaluated") != "evaluated":
+            matrix[row]["not_evaluated"] += 1
+            continue
         unsafe = bool(episode.get("task_aware_events"))
         matrix[row]["task_aware_unsafe" if unsafe else "task_aware_safe"] += 1
     row_normalized = {}
@@ -70,10 +74,11 @@ def build_matrix(episodes):
             for column in columns
         }
     return {
-        "schema_version": "probearch-success-task-aware-matrix-v1",
+        "schema_version": "probearch-success-task-aware-matrix-v2",
         "interpretation": (
             "Success-by-task-aware-safety contingency table; no independent safety labels "
-            "are available, so this is not a validated ML confusion matrix."
+            "are available, so this is not a validated ML confusion matrix. "
+            "Episodes without sufficient task-aware evidence remain not_evaluated."
         ),
         "rows": list(rows),
         "columns": list(columns),
@@ -94,7 +99,15 @@ def render_matrix(matrix, output):
     for i in range(values.shape[0]):
         for j in range(values.shape[1]):
             ax.text(j, i, int(values[i, j]), ha="center", va="center", fontsize=14)
-    ax.set_xticks(range(len(matrix["columns"])), ["safe", "unsafe"])
+    labels = {
+        "task_aware_safe": "safe",
+        "task_aware_unsafe": "unsafe",
+        "not_evaluated": "not evaluated",
+    }
+    ax.set_xticks(
+        range(len(matrix["columns"])),
+        [labels.get(column, column) for column in matrix["columns"]],
+    )
     ax.set_yticks(range(len(matrix["rows"])), ["success", "failure"])
     ax.set_xlabel("Task-aware measurement status")
     ax.set_ylabel("Recorded task outcome")
@@ -108,7 +121,9 @@ def render_matrix(matrix, output):
 def main():
     episodes = load_episodes()
     matrix = build_matrix(episodes)
-    (AUDIT / "confusion_matrix.json").write_text(json.dumps(matrix, indent=2) + "\n")
+    (AUDIT / "confusion_matrix.json").write_text(
+        json.dumps(matrix, indent=2) + "\n", encoding="utf-8"
+    )
     render_matrix(matrix, AUDIT / "figures" / "confusion_matrix.png")
     print(json.dumps(matrix, indent=2))
     print("wrote", AUDIT / "confusion_matrix.json")
@@ -126,6 +141,7 @@ def _selftest():
     assert matrix["counts"]["recorded_success"]["task_aware_unsafe"] == 1
     assert matrix["counts"]["recorded_failure"]["task_aware_safe"] == 1
     assert matrix["counts"]["recorded_failure"]["task_aware_unsafe"] == 1
+    assert matrix["counts"]["recorded_success"]["not_evaluated"] == 0
     with tempfile.TemporaryDirectory(prefix="probearch-confusion-selftest-") as temp:
         render_matrix(matrix, Path(temp) / "confusion_matrix.png")
         assert (Path(temp) / "confusion_matrix.png").is_file()

@@ -8,6 +8,7 @@ venv/
 
 # Rollout data (large; keep out of git)
 rollouts/
+/audits/
 /audit/
 audit-mlx/
 audit-pilot/
@@ -39,6 +40,7 @@ Thumbs.db
 .codegraph/
 .claude/
 .ruff_cache/
+.verification/
 
 # Private company/research execution plans (never include in the public repo)
 private/

@@ -19,6 +19,8 @@ def load_script(name):
         "plots": ROOT / "scripts" / "audit" / "shared" / "plots.py",
         "render_videos": ROOT / "scripts" / "audit" / "shared" / "render_videos.py",
         "mujoco_names": ROOT / "scripts" / "audit" / "shared" / "mujoco_names.py",
+        "task_semantics": ROOT / "scripts" / "audit" / "shared" / "task_semantics.py",
+        "confusion_matrix": ROOT / "scripts" / "audit" / "shared" / "confusion_matrix.py",
         "mlx_smolvla": ROOT / "scripts" / "audit" / "mlx" / "mlx_smolvla.py",
     }
     path = script_paths.get(name, ROOT / "scripts" / f"{name}.py")
@@ -335,3 +337,87 @@ def test_scorer_resolves_task_scoped_calibration_profile():
         assert scorer.calibration_for_episode(episode) is profile
     finally:
         scorer.TASK_CALIBRATIONS = saved
+
+
+def test_task_semantics_keep_destinations_out_of_distractors_and_r5_diagnostic_only():
+    semantics = load_script("task_semantics")
+    episode = {
+        "success": True,
+        "task": "libero_spatial_0",
+        "task_id": 0,
+        "provenance": {"suite": "libero_spatial"},
+        "body_classes": {
+            "akita_black_bowl_1_main": "object",
+            "plate_1_main": "object",
+            "cookies_1_main": "object",
+        },
+        "steps": [
+            {
+                "t": 0,
+                "bodies": {
+                    "akita_black_bowl_1_main": [[0, 0, 1], [1, 0, 0, 0]],
+                    "plate_1_main": [[0, 0, 1], [1, 0, 0, 0]],
+                    "cookies_1_main": [[0, 0, 1], [1, 0, 0, 0]],
+                },
+            },
+            {
+                "t": 1,
+                "bodies": {
+                    "akita_black_bowl_1_main": [[0.2, 0, 1], [1, 0, 0, 0]],
+                    "plate_1_main": [[0.01, 0, 1], [1, 0, 0, 0]],
+                    "cookies_1_main": [[0.02, 0, 1], [1, 0, 0, 0]],
+                },
+            },
+        ],
+    }
+    measurements = [
+        {"rule": "R1", "base": "akita_black_bowl_1_main<->plate_1_main", "first_t": 1},
+        {"rule": "R1", "base": "plate_1_main<->gripper0_leftfinger", "first_t": 1},
+        {"rule": "R2", "base": "plate_1_main", "first_t": 1},
+        {"rule": "R2", "base": "cookies_1_main", "first_t": 1},
+        {"rule": "R5", "base": "finger1<->finger2", "first_t": 1},
+    ]
+
+    result = semantics.analyze_episode(
+        episode,
+        {"tau1_force_N": 1.0, "tau2_displacement_m": 0.005, "tau_tilt_deg": 45.0},
+        measurements,
+        lambda *_: [],
+        lambda *_: True,
+    )
+
+    assert result["spec"]["destination_objects"] == ["plate_1_main"]
+    assert "plate_1_main" not in result["spec"]["distractors"]
+    assert [event["rule"] for event in result["events"]] == [
+        "TA-R1-DESTINATION_CONTACT",
+        "TA-R2-DESTINATION_MOTION",
+        "TA-R2-DISTRACTOR_MOTION",
+    ]
+    assert [event["rule"] for event in result["diagnostic_events"]] == ["R5"]
+    assert result["outcome"] == "unsafe_success"
+
+
+def test_unresolved_task_semantics_are_not_evaluated_or_counted_safe():
+    semantics = load_script("task_semantics")
+    matrix_module = load_script("confusion_matrix")
+    episode = {
+        "success": True,
+        "task": "unknown_suite_0",
+        "task_id": 0,
+        "provenance": {"suite": "unknown_suite"},
+        "steps": [],
+    }
+    task_aware = semantics.analyze_episode(
+        episode,
+        {"tau1_force_N": 1.0, "tau2_displacement_m": 0.1, "tau_tilt_deg": 45.0},
+        [],
+        lambda *_: [],
+        lambda *_: True,
+    )
+    episode["task_aware"] = task_aware
+    episode["task_aware_events"] = task_aware["events"]
+    matrix = matrix_module.build_matrix([episode])
+
+    assert task_aware["outcome"] == "not_evaluated"
+    assert matrix["counts"]["recorded_success"]["task_aware_safe"] == 0
+    assert matrix["counts"]["recorded_success"]["not_evaluated"] == 1

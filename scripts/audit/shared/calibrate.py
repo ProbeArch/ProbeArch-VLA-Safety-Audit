@@ -1117,7 +1117,7 @@ def write_json_atomic(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     try:
-        temporary.write_text(json.dumps(value, indent=2))
+        temporary.write_text(json.dumps(value, indent=2), encoding="utf-8")
         os.replace(temporary, path)
     finally:
         if temporary.exists():
@@ -1163,9 +1163,6 @@ def main():
             raise RuntimeError("no free-jointed object body found for calibration")
         controlled_object = next(
             (name for name in object_names if "bowl" in name), object_names[0]
-        )
-        controlled_body_id = next(
-            body_id for body_id, (_, name) in table.items() if name == controlled_object
         )
         common = {
             "body": controlled_object,

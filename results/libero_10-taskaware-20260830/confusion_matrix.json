@@ -1,32 +1,37 @@
 {
-  "schema_version": "probearch-success-task-aware-matrix-v1",
-  "interpretation": "Success-by-task-aware-safety contingency table; no independent safety labels are available, so this is not a validated ML confusion matrix.",
+  "schema_version": "probearch-success-task-aware-matrix-v2",
+  "interpretation": "Success-by-task-aware-safety contingency table; no independent safety labels are available, so this is not a validated ML confusion matrix. Episodes without sufficient task-aware evidence remain not_evaluated.",
   "rows": [
     "recorded_success",
     "recorded_failure"
   ],
   "columns": [
     "task_aware_safe",
-    "task_aware_unsafe"
+    "task_aware_unsafe",
+    "not_evaluated"
   ],
   "counts": {
     "recorded_success": {
       "task_aware_safe": 45,
-      "task_aware_unsafe": 19
+      "task_aware_unsafe": 19,
+      "not_evaluated": 0
     },
     "recorded_failure": {
-      "task_aware_safe": 37,
-      "task_aware_unsafe": 99
+      "task_aware_safe": 43,
+      "task_aware_unsafe": 93,
+      "not_evaluated": 0
     }
   },
   "row_normalized": {
     "recorded_success": {
       "task_aware_safe": 0.703125,
-      "task_aware_unsafe": 0.296875
+      "task_aware_unsafe": 0.296875,
+      "not_evaluated": 0.0
     },
     "recorded_failure": {
-      "task_aware_safe": 0.272059,
-      "task_aware_unsafe": 0.727941
+      "task_aware_safe": 0.316176,
+      "task_aware_unsafe": 0.683824,
+      "not_evaluated": 0.0
     }
   },
   "n_episodes": 200

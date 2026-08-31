@@ -1,4 +1,17 @@
-# Stewardship Backlog — next steps after v0.1
+# Stewardship Backlog — current validated baseline and next steps
+
+## Current baseline (2026-08-31)
+
+- [x] Complete fresh corrected CUDA calibration and 200-episode LIBERO-10 run.
+- [x] Complete fresh corrected CUDA calibration and 200-episode LIBERO-Spatial run.
+- [x] Verify all 400 raw episode hashes, manifests, task success labels,
+  calibration profiles, aggregate totals, and representative video hashes.
+- [x] Correct task semantics so commanded destinations are not distractors, R5
+  is diagnostic-only, and missing semantic evidence becomes `NOT_EVALUATED`.
+- [x] Regenerate both published matrices/reports and preserve the superseded
+  interpretations for audit history.
+- [ ] Obtain independent human/expert labels and define operational limits;
+  current safe/unsafe cells remain candidate measurement statuses, not hazards.
 
 ## Short-term (recommended next)
 - [x] Fix Gymnasium recursed `final_info` success extraction and align tau1
@@ -11,14 +24,85 @@
   (set contract); `python3 scripts/audit/shared/smoke_test.py` → `SMOKE PASSED` locally
   (numpy-only phase). Done in the final-fix round; live-phase checks still need
   the target machine.
-- [ ] Run the corrected validation pipeline (fresh `AUDIT_DIR` + re-derived
-  tau1/tau2; see docs/HANDOFF.md "REQUIRED next step") — blocks everything below
+- [x] Run the corrected validation pipeline with fresh task-scoped calibration
+  and frozen telemetry — completed for LIBERO-10 and LIBERO-Spatial.
 - [ ] Re-run with `n_pairs=8` + cross-seed re-seeding (beyond deterministic init cycling)
 - [ ] Reproduce on the Visual/NEW suites (needs full LIBERO datasets; method identical)
-- [ ] Share pilot report with design partners (below) — **BLOCKED until the
-  validation run completes**: the v0.1 results are retracted and must not be
-  presented as current findings
+- [ ] Share the corrected report with design partners while stating that the
+  task-aware labels have not yet been independently validated as hazards.
 - [ ] Publish raw telemetry archive (tar.gz of rollouts JSON) + offline viewer
+
+## Cross-model audit expansion
+
+The original audit remains the primary experiment. Add models one at a time
+under the same corrected harness, LIBERO task protocol, calibration artifacts,
+safety rules, and report schema. A model must not be compared using a different
+success definition, horizon, seed policy, image resolution, or action format.
+
+### Model 1 — TurboVLA (first)
+
+- [ ] Pin the official TurboVLA repository commit and the exact LIBERO
+  checkpoint; record the checkpoint SHA-256, license, and model configuration.
+- [ ] Create a separate Python 3.10 evaluation environment so TurboVLA
+  dependencies cannot silently change the validated SmolVLA environment.
+- [ ] Confirm the official LIBERO entry points for `libero_10` and
+  `libero_spatial`; do not assume a RoboTwin checkpoint is interchangeable.
+- [ ] Run a model-load smoke test on the RTX 3050 and record peak VRAM,
+  inference latency, dtype, image resolution, and sustained closed-loop rate.
+- [ ] Run stock-policy parity on one fixed LIBERO-Spatial task before any
+  safety fleet run.
+- [ ] Run the corrected live smoke gate, including success extraction,
+  telemetry fields, calibration compatibility, and video rendering.
+- [ ] Run a small matched pilot: the same task IDs, seeds, horizon, and number
+  of episodes used for the existing policy pilot.
+- [ ] Compare TurboVLA against the existing policy only after both manifests
+  pass validation; report task success, safety coverage, and all four outcome
+  classes separately.
+- [ ] Run the final TurboVLA LIBERO-10 and LIBERO-Spatial evaluation only after
+  the pilot passes. Preserve failed episodes and do not silently retry them.
+- [ ] Generate TurboVLA-specific reports, confusion matrices, calibration
+  outputs, representative success/failure videos, and model-delta tables.
+- [ ] Mark the run `BLOCKED` or `NOT_EVALUATED` if the checkpoint cannot run on
+  the available GPU or does not emit the required telemetry; do not replace it
+  with a different checkpoint without a new manifest.
+
+**TurboVLA exit gate:** a clean, reproducible pilot completes on the target
+machine and its report is directly comparable with the corrected baseline.
+
+### Model 2 — X-VLA (second)
+
+- [ ] Pin the official X-VLA implementation and the exact LIBERO checkpoint;
+  record the checkpoint SHA-256, action mode, domain ID, and processor version.
+- [ ] Confirm whether the chosen X-VLA checkpoint uses the same LIBERO robot,
+  camera layout, action convention, normalization, and control mode as the
+  audit harness.
+- [ ] Create a separate evaluation environment or lockfile for X-VLA.
+- [ ] Run model-load, preprocessing, action-shape, and latency smoke tests
+  before allocating episodes.
+- [ ] Add a thin policy adapter that converts X-VLA output into the existing
+  rollout action contract without changing the scorer or safety rules.
+- [ ] Run stock-policy parity and the corrected live smoke gate.
+- [ ] Run the same small matched pilot used for the baseline and TurboVLA.
+- [ ] Run final LIBERO-10 and LIBERO-Spatial evaluations only if the pilot,
+  manifest, and telemetry checks pass.
+- [ ] Add X-VLA to the cross-model matrix only when all models share the same
+  protocol; otherwise publish a descriptive, non-ranking comparison.
+
+**X-VLA exit gate:** the model produces valid, protocol-compatible rollouts and
+the audit conclusions remain traceable to the same task and safety contract.
+
+### Cross-model reporting rules
+
+- [ ] Keep model identity, checkpoint, environment, and policy configuration
+  visible in every report and video index.
+- [ ] Report per-suite and per-task results before any pooled number.
+- [ ] Include task success, `SAFE_SUCCESS`, `UNSAFE_SUCCESS`, `SAFE_FAILURE`,
+  `UNSAFE_FAILURE`, `NOT_EVALUATED`, safety coverage, and confidence intervals.
+- [ ] Do not rank models using safety percentages when evidence coverage differs.
+- [ ] Include compute cost, peak VRAM, latency, throughput, and episode budget
+  as reproducibility fields—not as safety outcomes.
+- [ ] Treat TurboVLA and X-VLA as research evaluation targets, not evidence of
+  physical-robot safety or certification.
 
 ## Design partners (people/orgs to review before wider release)
 - Community: LeRobot HF team (policy load + eval parity findings, GR00T dataclass bug report + patch)
@@ -61,4 +145,6 @@ target-machine validation and re-derived calibration, not static hardening.
 ## Long-term
 - Extend rule set: task semantics (action preconditions), temporal ordering, reward hacking
 - LLM-assist "event narrative" reconstruction from telemetry (open question)
-- Cross-model matrix: same protocol on 2B GR00T-N1.5, Pi-0, etc. (needs >4GB VRAM)
+- Expand the cross-model matrix to additional policies such as GR00T-N1.5 or
+  pi0 only after TurboVLA and X-VLA pass the same protocol and the hardware
+  budget is understood.

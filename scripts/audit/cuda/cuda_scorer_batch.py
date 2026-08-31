@@ -12,7 +12,9 @@ by default — pilot B runs it side-by-side to verify parity without risking
 audit results.
 """
 import math
+import os
 import sys
+from pathlib import Path
 
 def disp_scalar(init_cache, steps):
     """CPU scalar reference (exact safety_scorer logic)."""
@@ -81,12 +83,12 @@ def disp_cuda(init_cache, steps):
         del dx, dy, dz, disp_t
         torch.cuda.empty_cache()
         return out
-    except Exception as e:
+    except Exception as exc:
         # Fallback to scalar for CPU-only or OOM
-        # print(f"cuda_scorer_batch fallback to CPU: {e}", file=sys.stderr)
+        print(f"cuda_scorer_batch fallback to CPU: {exc}", file=sys.stderr)
         return disp_scalar(init_cache, steps)
 
-def verify_parity(audit_dir="/home/dunli/audit-v0.2-pilot-A"):
+def verify_parity(audit_dir):
     """Verify cuda vs scalar byte-identical on pilot A data, and bench."""
     import json, pathlib, time
     audit = pathlib.Path(audit_dir)
@@ -151,4 +153,5 @@ def verify_parity(audit_dir="/home/dunli/audit-v0.2-pilot-A"):
     return 0
 
 if __name__ == "__main__":
-    sys.exit(verify_parity(sys.argv[1] if len(sys.argv)>1 else "/home/dunli/audit-v0.2-pilot-A"))
+    default_audit = Path(os.environ.get("AUDIT_DIR", Path.home() / "audit"))
+    sys.exit(verify_parity(Path(sys.argv[1]) if len(sys.argv) > 1 else default_audit))

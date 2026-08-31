@@ -582,9 +582,11 @@ def main(output_audit=None):
     }
     all_events = []
     all_task_aware_events = []
+    all_task_aware_diagnostics = []
     pooled_task_aware_by_rule = {}
     pooled_task_aware_outcomes = {}
     pooled_expected_target_motion = 0
+    pooled_destination_motion = 0
     pooled_distractor_motion = 0
     total_initial_violations = 0
     for task in tasks:
@@ -634,6 +636,11 @@ def main(output_audit=None):
         task_aware_events = [
             event for ep in eps for event in ep.get("task_aware_events", [])
         ]
+        task_aware_diagnostics = [
+            event
+            for ep in eps
+            for event in (ep.get("task_aware") or {}).get("diagnostic_events", [])
+        ]
         task_aware_by_rule = {}
         for event in task_aware_events:
             task_aware_by_rule[event["rule"]] = task_aware_by_rule.get(event["rule"], 0) + 1
@@ -643,12 +650,17 @@ def main(output_audit=None):
             if outcome:
                 task_aware_outcomes[outcome] = task_aware_outcomes.get(outcome, 0) + 1
         all_task_aware_events.extend(task_aware_events)
+        all_task_aware_diagnostics.extend(task_aware_diagnostics)
         for event in task_aware_events:
             pooled_task_aware_by_rule[event["rule"]] = pooled_task_aware_by_rule.get(event["rule"], 0) + 1
         for outcome, count in task_aware_outcomes.items():
             pooled_task_aware_outcomes[outcome] = pooled_task_aware_outcomes.get(outcome, 0) + count
         pooled_expected_target_motion += sum(
             bool((ep.get("task_aware") or {}).get("expected_target_motion")) for ep in eps
+        )
+        pooled_destination_motion += sum(
+            bool((ep.get("task_aware") or {}).get("destination_motion_measurements"))
+            for ep in eps
         )
         pooled_distractor_motion += sum(
             bool((ep.get("task_aware") or {}).get("distractor_motion_measurements")) for ep in eps
@@ -670,9 +682,19 @@ def main(output_audit=None):
             "initial_state_violations": n_initial_violations,
             "task_aware_events_total": len(task_aware_events),
             "task_aware_events_by_rule": task_aware_by_rule,
+            "task_aware_diagnostic_events_total": len(task_aware_diagnostics),
+            "task_aware_diagnostic_events_by_rule": {
+                rule: sum(1 for event in task_aware_diagnostics if event.get("rule") == rule)
+                for rule in sorted({event.get("rule") for event in task_aware_diagnostics})
+                if rule
+            },
             "task_aware_outcomes": task_aware_outcomes,
             "episodes_with_expected_target_motion": sum(
                 bool((ep.get("task_aware") or {}).get("expected_target_motion")) for ep in eps
+            ),
+            "episodes_with_destination_motion": sum(
+                bool((ep.get("task_aware") or {}).get("destination_motion_measurements"))
+                for ep in eps
             ),
             "episodes_with_distractor_motion": sum(
                 bool((ep.get("task_aware") or {}).get("distractor_motion_measurements")) for ep in eps
@@ -690,8 +712,15 @@ def main(output_audit=None):
     summary["task_aware"] = {
         "events_total": len(all_task_aware_events),
         "events_by_rule": pooled_task_aware_by_rule,
+        "diagnostic_events_total": len(all_task_aware_diagnostics),
+        "diagnostic_events_by_rule": {
+            rule: sum(1 for event in all_task_aware_diagnostics if event.get("rule") == rule)
+            for rule in sorted({event.get("rule") for event in all_task_aware_diagnostics})
+            if rule
+        },
         "outcomes": pooled_task_aware_outcomes,
         "episodes_with_expected_target_motion": pooled_expected_target_motion,
+        "episodes_with_destination_motion": pooled_destination_motion,
         "episodes_with_distractor_motion": pooled_distractor_motion,
         "hazard_assessment": "not_assessed",
     }
