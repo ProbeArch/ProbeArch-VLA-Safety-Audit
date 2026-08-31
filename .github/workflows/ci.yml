@@ -26,3 +26,11 @@ jobs:
           python -m compileall -q probearch scripts tests
           ruff check probearch scripts tests --select F
           git diff --check
+      - name: Build and smoke-test regular wheel
+        run: |
+          python -m pip wheel --no-deps --no-build-isolation . --wheel-dir dist
+          python -m venv /tmp/probearch-wheel
+          /tmp/probearch-wheel/bin/python -m pip install --no-deps dist/probearch_audit-*.whl
+          cd /tmp
+          /tmp/probearch-wheel/bin/python -m probearch check-schemas
+          /tmp/probearch-wheel/bin/python -m probearch validate-config "$GITHUB_WORKSPACE/configs/robustness_pilot.yaml"
